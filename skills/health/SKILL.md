@@ -42,6 +42,12 @@ territory and a separate decision.
 
 Two checks, both read-only, both cheap; skip neither.
 
+- **Read the firewall through the Hetzner API when `HCLOUD_TOKEN` is in the shell**
+  (`host.provider` hetzner): `GET /v1/servers` → the server by public IP → its
+  firewalls → rules. Compare with the set `docs/provisioning.md` §4 renders for this
+  instance; a missing firewall, an extra rule (22 to the world, 8000 to `0.0.0.0/0` in
+  `github` mode) or a missing one is the lead finding. This is read-only and needs
+  only a read token. Without a token, fall back to the probe:
 - **Probe the public IP from outside.** `get_server` for the address, then the loop in
   `/setup-coolify-devops` step 2 (`</dev/tcp/<ip>/<port>` with a 3 s timeout) over 22, 80, 443,
   3000, 8000, 6001, 6002 — run here only if this machine is neither the host nor on

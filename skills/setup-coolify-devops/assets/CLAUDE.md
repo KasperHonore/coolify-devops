@@ -98,8 +98,10 @@ callback genuinely requires it — a tool receiving third-party webhooks is the 
 cloud firewall in front of the host is the guarantee — Docker's own port publishing walks
 straight past `ufw`, so a stray `ports:` line on an internal tool would put it on the
 public IP if the cloud firewall were not there. The rules, which follow from the lane
-answer and `exposure.coolify_ui`, are in `docs/provisioning.md`; `/setup-coolify-devops` and `/health`
-probe the public IP from outside to prove they hold. The Coolify dashboard itself
+answer and `exposure.coolify_ui`, are in `docs/provisioning.md`. With a Hetzner API
+token in the shell (`HCLOUD_TOKEN`), `/setup-coolify-devops` creates that firewall and
+`/health` reads its rules back; without one, both fall back to having the public IP
+probed from outside. The Coolify dashboard itself
 (port 8000) is reachable by: **{{UI_EXPOSURE}}**{{#UI_GITHUB}} — the tailnet plus
 GitHub's webhook ranges, so push-to-deploy works without the dashboard being on the open
 internet{{/UI_GITHUB}}{{#UI_TAILNET}} — over the tailnet only; GitHub cannot deliver

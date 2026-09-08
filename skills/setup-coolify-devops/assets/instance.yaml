@@ -15,6 +15,10 @@ coolify:
 
 host:
   provider: {{HOST_PROVIDER}}             # [pivot] hetzner | other — whose cloud firewall docs/provisioning.md addresses
+  firewall_name: coolify         # the cloud firewall attached to the server. With HCLOUD_TOKEN in the
+                                 # shell (same env file as the Coolify token; never here) the skills
+                                 # create, apply and read it back through the Hetzner API; without it,
+                                 # it is a human console step and the outside probe is the only check.
 
 operator:
   on_host: {{ON_HOST_YAML}}              # [pivot] true when Claude Code runs on the Coolify host itself (the

@@ -62,6 +62,7 @@ done because it was asked for:
    ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
    export COOLIFY_BASE_URL=http://localhost:8000     # or the host's tailnet IP:8000 from elsewhere
    export COOLIFY_ACCESS_TOKEN=<token>               # read + write + deploy scopes; never root
+   export HCLOUD_TOKEN=<token>                       # optional: Hetzner API, so the skill manages the firewall
    EOF
    ); grep -q coolify-devops.env ~/.bashrc || echo '. ~/.config/coolify-devops.env' >> ~/.bashrc
    ```
@@ -200,7 +201,19 @@ many Docker networks the server has, which decides whether every later create mu
 carry `destination_uuid` — record the count in the platform table too. If the MCP
 does not answer, stop — everything below depends on it, and the fix is precondition 1.
 
-**Then probe the firewall from outside.** `get_server` gives the host's public IP.
+**Then verify the firewall — through the Hetzner API if a token is in the shell,
+otherwise by the outside probe.** `[ -n "$HCLOUD_TOKEN" ]` decides. With the token
+(`docs/provisioning.md` §4, *let the skill do it*): find the server by its public IP,
+list its firewalls, and compare the rules with the set the runbook renders from
+`domains.public_suffix` and `exposure.coolify_ui`. No firewall, or a different rule
+set → **state the exact rules you are about to create or replace and get a yes**
+(this mutates a system outside Coolify), then create/apply via the API and read the
+rules back. The read-back is the verification, recorded with the firewall id in the
+*Host / firewall* row of `docs/infrastructure.md`. Still ask for one outside probe when
+someone off the tailnet is at hand — it proves enforcement, the API proves configuration —
+but do not block on it. Without the token, the probe is the only check:
+
+`get_server` gives the host's public IP.
 The probe has to come from a machine that is **off the tailnet and not the host**:
 traffic from the host to its own public IP never crosses the cloud firewall, so run
 on the host (`operator.on_host` true) it would show every port open and prove nothing.
@@ -218,7 +231,12 @@ Expected, from `instance.yaml`: 80 and 443 open only if `domains.public_suffix` 
 set; 8000 open only if `exposure.coolify_ui` is `internet` (in `github` mode this
 machine is not in GitHub's ranges, so 8000 must read *closed* here — that is the
 rule working); everything else closed, always. Any other answer is precondition 0 not
-met — stop and hand back the firewall section of `docs/provisioning.md`. Record the
+met — hand back the firewall section of `docs/provisioning.md`, and offer the API
+route: a Hetzner token in the env file lets this skill do it. **If nobody can act on
+it now, do not block the rest of the setup**: record the firewall as a known gap in
+`docs/infrastructure.md` with the probe result, insist that 2FA is on for the Coolify
+account (the login page is on the internet until the gap closes), and continue. A
+skipped step recorded as a gap is honest; a skipped step marked done is not. Record the
 result and date in the *Dashboard exposure* row of `docs/infrastructure.md`.
 
 Optional, and never part of the bootstrap: MCP 3.x can also run *inside* Coolify in

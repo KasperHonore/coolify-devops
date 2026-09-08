@@ -218,7 +218,50 @@ stops deploying, this list is the first thing to re-check. GitHub also signs eve
 webhook with the secret Coolify generated, so the allow-list is a second layer, not
 the only one.
 {{/UI_GITHUB}}
-{{#HOST_HETZNER}}### Creating it
+{{#HOST_HETZNER}}### Creating it — let the skill do it, with an API token
+
+Hetzner has an API, and the firewall is the one piece of provisioning the skills can
+do *and verify* themselves once they hold a token. Create one at Console → project →
+**Security** → **API tokens** → **Generate API token**, permission **Read & Write**, and
+put it beside the Coolify token in the env file from section 3:
+
+```bash
+echo 'export HCLOUD_TOKEN=<token>' >> ~/.config/coolify-devops.env
+```
+
+Then `/setup-coolify-devops` (step 2) creates the firewall named by `host.firewall_name` with exactly the
+rules in the table, applies it to this server, and reads the rules back — which is also
+how `/health` answers "which ports are open" from then on, without anyone probing from
+a laptop. Know what the token is: Hetzner tokens are **project-wide**, read-only or
+read-write, nothing finer — a read-write token in the shell of the Coolify host can
+delete that host. A read-only token still lets the skills *verify* the rules; only
+creating and changing them needs read-write. If that trade is not wanted, leave the
+token out and do the steps below by hand; the skills then record the firewall as a
+human step and ask for the outside probe instead.
+
+The API calls the skill makes, for the record (`jq` and `curl` only, no install):
+
+```bash
+H="Authorization: Bearer $HCLOUD_TOKEN"; API=https://api.hetzner.cloud/v1
+SERVER_ID=$(curl -s -H "$H" "$API/servers" | jq -r '.servers[] | select(.public_net.ipv4.ip=="<public-ip>") | .id')
+curl -s -H "$H" -H 'Content-Type: application/json' -X POST "$API/firewalls" -d @- <<JSON
+{ "name": "coolify",
+  "rules": [{{#HAS_PUBLIC}}
+    { "direction": "in", "protocol": "tcp", "port": "80",  "source_ips": ["0.0.0.0/0", "::/0"], "description": "public lane: ACME + redirect" },
+    { "direction": "in", "protocol": "tcp", "port": "443", "source_ips": ["0.0.0.0/0", "::/0"], "description": "public lane: Traefik" }{{#UI_GITHUB}},{{/UI_GITHUB}}{{#UI_INTERNET}},{{/UI_INTERNET}}{{/HAS_PUBLIC}}{{#UI_GITHUB}}
+    { "direction": "in", "protocol": "tcp", "port": "8000", "source_ips": $(curl -s https://api.github.com/meta | jq -c .hooks), "description": "Coolify: GitHub webhooks" }{{/UI_GITHUB}}{{#UI_INTERNET}}
+    { "direction": "in", "protocol": "tcp", "port": "8000", "source_ips": ["0.0.0.0/0", "::/0"], "description": "Coolify dashboard (internet mode)" }{{/UI_INTERNET}}
+  ],
+  "apply_to": [{ "type": "server", "server": { "id": $SERVER_ID } }] }
+JSON
+curl -s -H "$H" "$API/firewalls" | jq '.firewalls[] | select(.name=="coolify") | {rules, applied_to}'   # read back
+```
+
+An empty `rules` list is valid and means "nothing inbound" — the `tailnet` mode with no
+public lane. Rule changes later go through `POST /firewalls/<id>/actions/set_rules`,
+which replaces the whole set.
+
+### Creating it by hand
 
 Console → project → **Firewalls** → **Create Firewall** → add the inbound rules from the
 table (protocol TCP, port, then the source IPs in the text box — "if no IP address is
@@ -240,6 +283,16 @@ hcloud firewall add-rule coolify --direction in --protocol tcp --port 443 --sour
 Hetzner's firewall is stateful, free, allows up to 100 source CIDRs per rule, and
 applies to the server's public IPv4 and IPv6. It does not filter Hetzner private
 networks, which this setup does not use.
+
+**Order matters if you are connected over public SSH**: applying this firewall closes
+22 to the internet at once and drops that session. Be on Tailscale SSH (section 2)
+when it goes on. Over Tailscale nothing changes — that traffic never crosses the
+firewall's inbound rules.
+
+**If nobody with console access is available right now**, the setup can continue
+with the firewall recorded as a *known gap* in `docs/infrastructure.md` — but then
+the Coolify login page is on the open internet on 8000, so 2FA on the account is not
+optional, and the gap is the first thing to close.
 {{/HOST_HETZNER}}{{^HOST_HETZNER}}### Creating it
 
 Create the provider's firewall with exactly the inbound rules in the table, no outbound

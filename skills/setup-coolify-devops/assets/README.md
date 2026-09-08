@@ -22,6 +22,7 @@ survive logout and reboot (the allow-list `.gitignore` keeps it out of git):
 ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
 export COOLIFY_BASE_URL=http://localhost:8000     # or the host's tailnet IP:8000 from elsewhere
 export COOLIFY_ACCESS_TOKEN=<token>               # read + write + deploy scopes; never root
+export HCLOUD_TOKEN=<token>                       # optional: Hetzner API, so the skills manage the firewall
 EOF
 ); grep -q coolify-devops.env ~/.bashrc || echo '. ~/.config/coolify-devops.env' >> ~/.bashrc
 ```

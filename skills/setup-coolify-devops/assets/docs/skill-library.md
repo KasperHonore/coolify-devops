@@ -44,6 +44,12 @@ folded in the same evening:**
   because that is where Coolify's web terminal (an SSH session) lands — so the
   deployment repo *is* the home directory, and the `.gitignore` became an allow-list
   so `git add -A` there can never commit the token file or Claude's session data.
+- *"I'm not able to access the Hetzner machine — is it okay to skip for now?"* The
+  firewall probe blocked the whole setup behind a step the operator could not deliver.
+  Two fixes: a skipped firewall is now a recorded known gap with 2FA insisted on, not a
+  wall; and the user's own idea — a Hetzner API token as an optional binding, in the
+  same env file — lets the skill create the firewall and read its rules back, which is
+  also the authoritative answer to "which ports are open" that a probe never was.
 - The `tailscale` CLI is the one thing the shell may *change*: node-local settings
   (SSH, tags, hostname) are done by the skill when it has the CLI — on the host, or
   over Tailscale SSH from another machine on the tailnet, which is the single

@@ -323,6 +323,7 @@ Human steps still ahead (the skill hands these over and verifies them):
        ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
        export COOLIFY_BASE_URL=${coolifyUrl || (onHost ? 'http://localhost:8000' : 'http://<tailnet-ip-of-the-host>:8000')}
        export COOLIFY_ACCESS_TOKEN=<token>      # read + write + deploy scopes; never root
+       export HCLOUD_TOKEN=<token>              # optional: lets the skills manage the Hetzner firewall
        EOF
        ); grep -q coolify-devops.env ~/.bashrc || echo '. ~/.config/coolify-devops.env' >> ~/.bashrc
     then open a new shell (or source ~/.bashrc), start claude here so .mcp.json picks the
