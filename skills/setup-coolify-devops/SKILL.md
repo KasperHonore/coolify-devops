@@ -101,12 +101,16 @@ done because it was asked for:
    as minted in `docs/tailnet-state.md`); also the ACL needs `autoApprovers.services`
    for the registrar's tag or every service will sit at *Pending approval*. Three
    things to get right in how this step is handed over:
-   - **It is console-only.** Admin console → Settings → *Trust credentials* →
-     *Credential* → *OAuth* (older consoles: Settings → *OAuth clients*). Neither the
-     `tailscale` CLI (it manages the node, not the tailnet) nor the API can create an
-     OAuth client — the API only mints tokens *from* one. A user asked "can you create
-     it from the CLI?"; the answer is no, and say why in one line rather than leaving
-     the question hanging.
+   - **It is console-only.** Hand over the direct link,
+     `https://login.tailscale.com/admin/settings/trust-credentials`, then *Credential* →
+     *OAuth* (older consoles: Settings → *OAuth clients*). Neither the `tailscale` CLI
+     (it manages the node, not the tailnet) nor the API can create an OAuth client —
+     the API only mints tokens *from* one — and a headless browser on the host cannot
+     either: the node key is a device credential, not a console login, and the console
+     sits behind the user's identity provider and MFA, whose password this skill must
+     never handle. Users have asked for both; answer no and why in one line, then make
+     the human step as short as it can be: link, two scopes, a tag, two values pasted
+     into a Coolify page that already exists (step 4 creates it first).
    - **The secret is shown once**, on the *Credential created* page, and never again.
    - **The secret never enters this session.** Do not offer "paste the ID and secret
      here" — it would land in the transcript, and every `env_vars create` call carrying
