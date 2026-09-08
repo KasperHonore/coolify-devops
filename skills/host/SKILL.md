@@ -17,13 +17,28 @@ Optional: **lane** and **name**. The name is resolved from the rules; the lane i
 environment, and policy defaults are named below by their keys there — never assume
 the values, and never hardcode a value from it back into this skill.
 
+**Is it an AI Build Kit project?** A repo built with
+[AI Build Kit](https://github.com/gwpicard/ai-build-kit) — the companion kit that runs
+on the *builder's* machine — carries `masterplan.md`, `AGENTS.md` and `CHANGELOG.md`
+at its root, and its `/ship` has already judged the work ready before anyone asks to
+host it. That changes three things below, each marked **AI Build Kit**: the hosting
+request in its masterplan replaces the research subagent (step 2), the shape is
+always an application from the git source (step 3a), and the run ends with an
+address block for the builder to paste back (step 7). The split, so neither kit
+oversteps: their `/ship` decides *whether* and *what* goes live; this skill decides
+*where* and *how* it runs; the address is the only thing that crosses. This repo
+never writes into theirs, and nothing here reads their files except the masterplan.
+
 ## 1. Decide lane and name
 
 - **Lane: if the user stated it, that decides it. If not, always ask** — one question,
   "internal (tailnet-only) or public (on the internet)?" — recommending internal unless
   an external party, inbound webhook, or OAuth callback genuinely requires public
   (the bar: a tool that receives third-party webhooks). Never silently default: the lane decides who can reach the thing, and
-  exposure is the user's call, not the skill's.
+  exposure is the user's call, not the skill's. **AI Build Kit:** the hosting request
+  names a recommended lane, derived from their fit check ("will anyone outside the
+  team sign in or rely on it?" is this question in their words). Offer it as the
+  recommendation inside the same one question — still ask.
   - Internal → project `projects.internal`, address `https://<name>.<domains.internal_suffix>`
   - Public → project `projects.public`, address `https://<name>.<domains.public_suffix>`
 - **Name: one plain lowercase word**, hyphen only if unavoidable. Same name for the
@@ -32,6 +47,18 @@ the values, and never hardcode a value from it back into this skill.
   qualified name, its wiring is wrong — re-read "Naming" in `docs/platform.md`.
 
 ## 2. Research the upstream before writing anything
+
+**AI Build Kit: the hosting request is the report.** Read the operations section of
+`masterplan.md`, fetched raw at the branch to be deployed. Their `/ship` writes a
+hosting request there with, at minimum: the repo URL and branch, the recommended
+lane, the port the container listens on, the env var *names* it needs (never values —
+those go into Coolify's env store by hand), the paths that must persist, and the
+healthcheck path. That is the deployability report: do not spawn the research
+subagent. Validate it the way any report is validated — against the repo's
+`Dockerfile` at that branch, not `main` — and relay a disagreement as a finding
+rather than resolving it silently. A masterplan with no hosting request is a project
+whose `/ship` predates the hand-off: fall back to the research below, and tell the
+builder the block is missing so their next `/ship` writes it.
 
 **Do not skip to compose authoring on the strength of a README badge.** For anything
 beyond a single obvious image, spawn a web-capable research subagent to read the
@@ -77,8 +104,8 @@ reference a binary a newer image dropped, and then fail forever on a healthy bac
 
 **Then pick the deployment shape.** First branch on whose code it is:
 
-- **Our own repo, or anything under active development → a Coolify *application***
-  from the git source (step 3a). This is what buys auto-deploy on push, rolling
+- **Our own repo, anything under active development, and every AI Build Kit project
+  → a Coolify *application*** from the git source (step 3a). This is what buys auto-deploy on push, rolling
   zero-downtime updates, and working deployment history — a compose service gets none
   of those. Do not wrap your own repo in a hand-written compose out of habit.
 - **A third-party product → a *service***, in order of preference: Coolify template →
@@ -101,7 +128,12 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
   reach the Coolify instance URL**: it works when `exposure.coolify_ui` is `github`
   or `internet`, and cannot when it is `tailnet` — say so up front rather than
   letting the first push silently not deploy (`docs/platform.md`, *The Coolify
-  dashboard and push-to-deploy*).
+  dashboard and push-to-deploy*). **AI Build Kit:** use the GitHub App source. Its
+  per-PR preview deployments are what the builder's `/ship` calls the preview
+  address, and push-to-deploy on the default branch is what every later `/ship`
+  relies on — a first launch here, then a push per release. Without them the hand-off
+  degrades to a manual redeploy per release, which goes in the address block (step 7)
+  rather than being discovered at the second release.
 - **Build pack**: a `Dockerfile` in the repo for anything long-lived (full control,
   reproducible); Nixpacks/Railpack only for quick zero-config starts.
 - **Zero-downtime**: rolling updates happen for applications *only* when a passing
@@ -231,3 +263,20 @@ on — a "no" is a decision, not an open item.
    `docs/tailnet-state.md` ("Where we are today"); under a blanket grant the whole
    tailnet sees the new service immediately.
 5. Commit straight to `main`.
+6. **AI Build Kit: hand back the address block.** Print it verbatim for the builder
+   to paste into the operations section of their `masterplan.md` (their `/sync`
+   keeps it current; this repo never writes into theirs):
+
+   ```
+   Hosted by coolify-devops at <Coolify URL>
+   Address:        https://<name>.<suffix>                (lane: internal | public)
+   Preview:        per-PR preview deployments via the GitHub App | none — say why
+   Later releases: push to <branch>; Coolify redeploys | manual redeploy — say why
+   Rollback:       redeploy the previous deployment from Coolify's history
+   Access:         <who can reach it, per docs/tailnet-state.md | anyone on the internet>
+   Backups:        <the decision from step 6>
+   Secrets:        <env var names>, held in Coolify's env store for this resource
+   ```
+
+   Their `/ship` reads that block on every later launch, and their
+   operational-readiness step counts rollback, access and backups as answered by it.

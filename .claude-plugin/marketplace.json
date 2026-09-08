@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "coolify-devops",
+  "description": "The Claude Code distribution of coolify-devops.",
+  "owner": {
+    "name": "Kasper Honore"
+  },
+  "plugins": [
+    {
+      "name": "coolify-devops",
+      "source": "./",
+      "description": "Operate a Coolify server from Claude Code through the Coolify MCP, with a tailnet-first hosting model.",
+      "license": "MIT",
+      "category": "productivity",
+      "tags": [
+        "coolify",
+        "devops",
+        "self-hosting",
+        "agent-skills"
+      ]
+    }
+  ]
+}

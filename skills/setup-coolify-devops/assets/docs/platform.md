@@ -397,7 +397,10 @@ invoking it over working from memory. This list stays authoritative; the skill f
    No suffixes, no prefixes, no port in the address. See **Naming**. For the internal
    lane, follow `internal-services.md` — labels, ports, and how to verify — and
    `tailnet-access.md` for who should be able to reach it.
-4. Prefer an official Coolify service template; fall back to a compose service.
+4. Your own repo, or a project built with AI Build Kit, is an *application* from the
+   git source — `/host` reads the hosting request in its masterplan and hands back
+   the address. A third-party product is a *service*: prefer an official Coolify
+   template; fall back to a compose service.
 5. Public: give it `<name>.{{PUBLIC_SUFFIX}}` and let Traefik handle TLS. Never publish
    a host port, and never add a DNS record by hand.
 6. Private: no FQDN, no port; label it for `docktail` and let reconciliation pick it up.

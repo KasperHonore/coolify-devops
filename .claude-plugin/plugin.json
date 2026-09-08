@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "coolify-devops",
+  "displayName": "coolify-devops",
+  "description": "Operate a Coolify server from Claude Code through the Coolify MCP: host, change, check and grant access to internal tools on a tailnet, and public ones on the internet. Companion to AI Build Kit for the hosting side.",
+  "version": "0.2.0",
+  "author": {
+    "name": "Kasper Honore"
+  },
+  "homepage": "https://github.com/KasperHonore/coolify-devops",
+  "repository": "https://github.com/KasperHonore/coolify-devops",
+  "license": "MIT",
+  "keywords": [
+    "agent-skills",
+    "coolify",
+    "devops",
+    "self-hosting",
+    "tailscale"
+  ],
+  "skills": [
+    "./skills/setup-coolify-devops",
+    "./skills/host",
+    "./skills/change-service",
+    "./skills/health",
+    "./skills/grant-access"
+  ]
+}

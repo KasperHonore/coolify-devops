@@ -1,5 +1,38 @@
 # The skill library as a distributable product: position
 
+Status, 2026-09-08, night: **the library is the hosting half of a pair, and ships
+both install routes.** Two decisions, both reversing or sharpening what stands below:
+
+- **Companion to [AI Build Kit](https://github.com/gwpicard/ai-build-kit).** That kit
+  teaches non-developers to build a tool in a project repo on their own machine; its
+  `/ship` is the only command there that moves work to "the copy the team actually
+  uses", and it deliberately does not host. This library is where that copy runs,
+  on the server. The split, agreed in principle with its maintainer and still to be
+  settled in detail: *`/ship` decides whether and what goes live; `/host` decides
+  where and how it runs; the address is the only thing that crosses.* `/host` now
+  recognises such a project (`masterplan.md` + `AGENTS.md` + `CHANGELOG.md`), reads
+  the hosting request `/ship` writes into the masterplan's operations section instead
+  of researching, deploys from the git source with the GitHub App so their preview
+  address and push-to-deploy exist, and hands back an address block for the builder
+  to paste. Their fit-check question "will anyone outside the team rely on it" *is*
+  our lane question. What is still theirs to add: `/ship` writing the request, and a
+  mention in their README and `/ship` step 4. What was decided not to do: `/ship`
+  calling the Coolify MCP from the laptop. A human between "ready" and "live", with a
+  session on each machine, is the safety property both kits are built around; our
+  `operator.on_host: false` binding would make it possible later if that changes.
+- **The Claude plugin route is back**, alongside the skills CLI, for parity with the
+  companion's install routes: `.claude-plugin/plugin.json` lists the five skills,
+  `marketplace.json` has a single `source: "./"` entry, both validated with
+  `claude plugin validate . --strict` and rehearsed by a real install into a
+  throwaway `CLAUDE_CONFIG_DIR`. What made it cheap now, where it was deferred
+  below: `${CLAUDE_SKILL_DIR}` is substituted in plugin skills too, so every
+  `scripts/scaffold.js` command works unchanged from the cache, and the scaffolder's
+  existing fallback to the working directory means the in-place repo model survives
+  (verified: files land in the project, the cache stays clean, `--render` from the
+  cache leaves no unrendered tag). Commands carry the `coolify-devops:` prefix on
+  this route. Not done, and not planned: the open Agent Plugins format the companion
+  also serves; nothing has asked for it.
+
 Status, 2026-09-08, evening: **distribution is the skills CLI, and only that.** The
 library is installed with `npx skills add KasperHonore/coolify-devops`; the npm
 scaffolder is gone. What forced the shape: the skills CLI installs *only* skill

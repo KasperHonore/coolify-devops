@@ -2,11 +2,12 @@
   "name": "coolify-devops",
   "version": "0.2.0",
   "private": true,
-  "description": "Claude Code skills for operating a Coolify server through the Coolify MCP, with a tailnet-first hosting model. Install with `npx skills add KasperHonore/coolify-devops`.",
+  "description": "Claude Code skills for operating a Coolify server through the Coolify MCP, with a tailnet-first hosting model. The hosting companion to AI Build Kit. Install with `npx skills add KasperHonore/coolify-devops` or as a Claude Code plugin.",
   "scripts": {
     "render": "cd .. && node library/skills/setup-coolify-devops/scripts/scaffold.js --render",
     "publish-library": "sh bin/publish-library.sh",
-    "test": "node skills/setup-coolify-devops/scripts/scaffold.js --no-git --internal-suffix=example-tailnet.ts.net /tmp/coolify-devops-smoke && node skills/setup-coolify-devops/scripts/scaffold.js --no-git --public-suffix=team.duckdns.org --coolify-ui=internet /tmp/coolify-devops-smoke2 && ! grep -rl '{{' /tmp/coolify-devops-smoke /tmp/coolify-devops-smoke2 && rm -rf /tmp/coolify-devops-smoke /tmp/coolify-devops-smoke2"
+    "test": "node skills/setup-coolify-devops/scripts/scaffold.js --no-git --internal-suffix=example-tailnet.ts.net /tmp/coolify-devops-smoke && node skills/setup-coolify-devops/scripts/scaffold.js --no-git --public-suffix=team.duckdns.org --coolify-ui=internet /tmp/coolify-devops-smoke2 && ! grep -rl '{{' /tmp/coolify-devops-smoke /tmp/coolify-devops-smoke2 && rm -rf /tmp/coolify-devops-smoke /tmp/coolify-devops-smoke2",
+    "validate": "claude plugin validate . --strict && claude plugin validate .claude-plugin/plugin.json --strict && claude plugin validate skills --strict"
   },
   "engines": {
     "node": ">=18"

@@ -28,6 +28,18 @@ Two modes — say which one applies before anything else:
 A repo whose `instance.yaml` exists but has `""` for some keys is bootstrap mode
 resumed: confirm what is there, ask only for the blanks, re-render.
 
+A third, trivial mode — **re-render**: `instance.yaml` is complete and the user has
+just updated the skills (either route) or asks to refresh the runbooks. Run
+`node "${CLAUDE_SKILL_DIR}/scripts/scaffold.js" --render`, report what changed
+(`git diff --stat`), and stop; no interview, no MCP calls.
+
+Both install routes lead here. Under the skills CLI the skills are files in the
+deployment repo and the scaffolder finds the repo from its own path; under the
+Claude plugin route (`/coolify-devops:setup-coolify-devops`) the skill runs from
+Claude's plugin cache, the scaffolder falls back to the working directory, and
+`${CLAUDE_SKILL_DIR}` still points at this skill's `scripts/` and `assets/`. Nothing
+else differs, and nothing is ever written into the cache.
+
 Five preconditions are outside any repo's reach. Hand each to the human as a
 prepared step — exact console path or command, verified afterwards, never marked
 done because it was asked for:
@@ -211,8 +223,9 @@ node "${CLAUDE_SKILL_DIR}/scripts/scaffold.js" \
 
 (`--help` lists every flag; omit what was not answered and it stays `""` for later.)
 **No target directory.** The script scaffolds *in place*, in the directory the skills
-are installed in — it finds that from its own path — so the repo, the skills and the
-session's working directory are the same folder and nobody has to `cd` anywhere. In
+are installed in — it finds that from its own path, or from the working directory
+when it runs from the plugin cache — so the repo, the skills and the session's
+working directory are the same folder and nobody has to `cd` anywhere. In
 the usual setup that folder is **root's home on the Coolify host**: it is where the
 Coolify web terminal (an SSH session, Servers → Terminal) and Tailscale SSH both land,
 so `claude` there finds everything with no navigation. A home directory full of
