@@ -24,17 +24,24 @@ primitives does not apply. Capacity problems are solved by resizing the box.
 This is the most important convention in the setup. Every new resource goes down
 **one of two lanes**, and the project it lives in encodes the choice.
 
-### Lane 1 — Public (Traefik + Cloudflare)
+### Lane 1 — Public (Traefik + a wildcard domain)
 
 * Resource is given an FQDN like `<name>.{{PUBLIC_SUFFIX}}`.
 * Traefik terminates TLS and routes to the container; no host port is published.
-* DNS is self-maintaining: the `cloudflare-ddns` service holds a Cloudflare API token
-  and keeps the `*.{{PUBLIC_SUFFIX}}` A record pinned to the host's current IP,
-  re-checking every 5 minutes. Never hand-edit that record.
+* DNS is self-maintaining: the `{{PUBLIC_DNS}}` service holds a {{#DNS_CLOUDFLARE}}Cloudflare API
+  token scoped to the zone and keeps the `*.{{PUBLIC_SUFFIX}}` A record{{/DNS_CLOUDFLARE}}{{#DNS_DUCKDNS}}DuckDNS
+  token and keeps the `{{PUBLIC_SUFFIX}}` record (DuckDNS resolves every subdomain of it
+  to the same address, so that one record is the wildcard){{/DNS_DUCKDNS}} pinned to the
+  host's current IP, re-checking every 5 minutes. Never hand-edit that record.
 * Lives in the **{{PROJECT_PUBLIC}}** project.
-* The public lane exists only if `domains.public_suffix` is set. Because the wildcard
-  domain is configured in Coolify, any resource given an FQDN under `*.{{PUBLIC_SUFFIX}}`
+* The public lane exists only if `domains.public_suffix` is set — **a public lane needs
+  a domain**: one the team owns (the right answer for a company) or a free DuckDNS
+  subdomain (fine to start). `plumbing.public_dns_provider` names which; the pinner
+  differs, the rest of the lane does not. Because the wildcard domain is configured in
+  Coolify (server settings), any resource given an FQDN under `*.{{PUBLIC_SUFFIX}}`
   gets DNS and a Let's Encrypt certificate with no manual steps.
+* Ports 80 and 443 are open at the cloud firewall only when this lane exists. With no
+  public lane they stay closed, and Traefik listens to nobody.
 
 ### Lane 2 — Private (Tailscale via docktail)
 
@@ -64,6 +71,57 @@ This is the most important convention in the setup. Every new resource goes down
 **Rule of thumb:** default to Lane 2. Only put something on the public internet when an
 external party, webhook, or OAuth callback genuinely requires it. A workflow tool that
 receives inbound webhooks from third parties is the bar; a dashboard is not.
+
+### The firewall is what enforces the lanes
+
+Both lanes rely on "no published host port", and that is a convention, not a guarantee.
+Docker publishes ports by rewriting iptables ahead of the host's own `INPUT` chain, so
+`ufw` never sees that traffic — Docker's documentation says so outright, and even
+`ufw deny 3000` does not close a published 3000. The only thing that reliably keeps a
+stray `ports:` line off the public IP is a firewall *outside* the VM: the cloud
+provider's, attached to the server, allow-list only, implicit deny. That is the
+perimeter; `docs/provisioning.md` holds the rule set, which follows from two answers
+in `instance.yaml`:
+
+| Inbound rule | When |
+|---|---|
+| nothing for Tailscale | always — Tailscale needs no inbound port; it dials out and relays through DERP if it must |
+| TCP 80, 443 from anywhere | `domains.public_suffix` is set (public lane exists) |
+| TCP 8000 from GitHub's webhook ranges | `exposure.coolify_ui` is `github` |
+| TCP 8000 from anywhere | `exposure.coolify_ui` is `internet` |
+| TCP 22 | never — SSH goes over the tailnet (Tailscale SSH, or the tailnet IP) |
+
+Everything else is closed, including 8000 in `tailnet` mode and every port a resource
+might accidentally publish. `/setup` and `/health` probe the public IP from the operator's
+machine — which is on the internet, so a connection *succeeding* is the finding — and
+`/health` also scans internal-lane composes for `ports:`. Three layers: the convention
+in `/host`, the scan in `/health`, the firewall for when both are missed.
+
+### The Coolify dashboard and push-to-deploy
+
+Coolify's own UI and API live on port 8000 of the host (plus 6001 and 6002 for the
+realtime and terminal channels). The team reaches it over the tailnet at
+`http://<tailnet-ip>:8000` — that works with every inbound port closed. The question is
+whether anyone *else* needs to reach it, and the one thing that does is GitHub:
+push-to-deploy is a webhook GitHub posts to the Coolify instance URL, so GitHub must be
+able to open a connection to it. Hence `exposure.coolify_ui`:
+
+* **`tailnet`** — nothing inbound. No push-to-deploy; deploys are triggered from the
+  MCP or the UI.
+* **`github`** — 8000 open to GitHub's published webhook ranges only (`GET
+  https://api.github.com/meta`, key `hooks`; six CIDRs today, IPv4 and IPv6; they
+  change rarely but do change — re-check them when a webhook stops arriving). The
+  instance URL is `http://<public-ip>:8000`. The one-time GitHub App creation is a
+  browser round trip through that URL, so during it the team's own IP is added to the
+  rule and removed afterwards.
+* **`internet`** — 8000 open to anyone. Verified to work for push-to-deploy with no
+  domain at all; the price is that the Coolify login page is on the open internet, so
+  2FA on every Coolify account is mandatory, not advisable. A public lane can also put
+  the dashboard behind `coolify.{{PUBLIC_SUFFIX}}` with TLS, which is nicer but changes
+  nothing about who can reach the login page.
+
+GitHub signs every webhook with the secret Coolify generated; the IP allow-list is an
+extra layer on top of that signature, not a replacement for it.
 
 ### docktail's one-way ports
 
@@ -322,6 +380,8 @@ The **`/host` skill**  walks this checklist end to end — prefer
 invoking it over working from memory. This list stays authoritative; the skill follows it.
 
 1. Does it need to be publicly reachable? If not — and usually it is not — Lane 2.
+   Lane 1 is only available at all when this instance has a public lane
+   (`domains.public_suffix` set, 80/443 open per `docs/provisioning.md`).
 2. Pick the project that matches the lane (`{{PROJECT_PUBLIC}}` / `{{PROJECT_INTERNAL}}`), or
    `{{PROJECT_INFRA}}` if other resources depend on it.
 3. Pick one plain name and use it everywhere — resource, Tailscale Service, subdomain.

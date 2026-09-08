@@ -16,8 +16,10 @@ naming, the deployment model, working through the MCP — is the portable
 | Servers | _(`list_servers`)_ |
 | Destinations | _(`list_destinations` — more than one means every create needs `destination_uuid`)_ |
 | Proxy | Traefik |
-| Wildcard domain | {{#HAS_PUBLIC}}`https://{{PUBLIC_SUFFIX}}`{{/HAS_PUBLIC}}{{^HAS_PUBLIC}}_(no public lane)_{{/HAS_PUBLIC}} |
+| Wildcard domain | {{#HAS_PUBLIC}}`https://{{PUBLIC_SUFFIX}}` ({{DNS_PROVIDER}}){{/HAS_PUBLIC}}{{^HAS_PUBLIC}}_(no public lane)_{{/HAS_PUBLIC}} |
 | Tailnet | `{{INTERNAL_SUFFIX}}` |
+| Host / firewall | {{HOST_PROVIDER}} — _(firewall name as shown in the console; `/setup` records it)_ |
+| Dashboard exposure | `{{UI_EXPOSURE}}` — _(outside probe result and date, from `/setup` step 2)_ |
 
 Single-node. Currently public: _(none)_. The canary is `https://{{CANARY}}.{{INTERNAL_SUFFIX}}/`.
 
@@ -41,8 +43,10 @@ so `find_issues` warnings about them are not read as new findings.
 Names only — values live in Coolify's env store, never here.
 
 * Tailscale OAuth client ID + secret (`{{REGISTRAR}}`).
-{{#HAS_PUBLIC}}* Cloudflare API token (`{{PUBLIC_DNS}}`).
-{{/HAS_PUBLIC}}
+{{#HAS_PUBLIC}}* {{#DNS_CLOUDFLARE}}Cloudflare API token, scoped to the zone{{/DNS_CLOUDFLARE}}{{#DNS_DUCKDNS}}DuckDNS account token{{/DNS_DUCKDNS}} (`{{PUBLIC_DNS}}`).
+{{/HAS_PUBLIC}}* Coolify API token for the MCP (in the operator's shell, never here).
+{{#UI_INTERNET}}* Coolify account 2FA — the dashboard is on the open internet; record here that it is on.
+{{/UI_INTERNET}}
 ---
 
 ## Persistent state

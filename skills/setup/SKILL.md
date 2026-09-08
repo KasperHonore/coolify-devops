@@ -25,10 +25,19 @@ Three modes — say which one applies before anything else:
   `docs/conventions.md`, "Pivoting to another instance", executed rather than
   paraphrased.
 
-Four preconditions are outside any repo's reach. Hand each to the human as a
+Five preconditions are outside any repo's reach. Hand each to the human as a
 prepared step — exact console path or command, verified afterwards, never marked
 done because it was asked for:
 
+0. **The server exists, is on the tailnet, runs Coolify, and sits behind the cloud
+   firewall that matches the lane answers.** All of that is human console work, and
+   `docs/provisioning.md` is the checklist — hand it over section by section rather
+   than paraphrasing it, and treat its *Done when* list as the verification. The
+   firewall part is verified from *here*, in step 2 below, by probing the public IP;
+   a probe that connects is the finding. If the checklist's questions (public lane?
+   who reaches the dashboard?) have not been answered yet, they are the first two
+   questions of the interview in step 1, and `docs/provisioning.md` re-renders from
+   the answers.
 1. **The Coolify MCP is pointed at the instance** — harness configuration; tokens
    never enter the repo. The prepared step for Claude Code, token supplied from the
    human's shell environment and scoped per `docs/platform.md`, *Token scoping* (never `root`):
@@ -47,21 +56,35 @@ done because it was asked for:
    variable does not fail loudly: Claude Code loads the server with the literal
    `${VAR}` text and only warns in `claude mcp list`, so a token-shaped 401 from
    `get_version` usually means the export was missing, not the token wrong.
-2. **The Coolify host is on the tailnet** (Tailscale installed, signed in, and — for
-   the registrar's node — key expiry disabled, per `docs/tailnet-access.md`).
+2. **The Coolify host is on the tailnet** (Tailscale installed, signed in with
+   `--ssh` so Tailscale SSH is the way onto the box, and — for the registrar's node —
+   key expiry disabled; `docs/provisioning.md` section 2, `docs/tailnet-access.md` for
+   the policy side).
 3. **A Tailscale OAuth client exists** with the registrar's scopes (`devices:core`
    and `services` — the working set in `docs/tailnet-access.md`, recorded as minted in
    `docs/tailnet-state.md`), minted in
    the admin console; also the ACL needs `autoApprovers.services` for the
    registrar's tag or every service will sit at *Pending approval*.
-4. **Public lane only**: a Cloudflare API token scoped to the DNS zone.
+4. **Public lane only**: a DNS token for the wildcard record's holder — a Cloudflare
+   API token scoped to the zone, or the DuckDNS account token
+   (`plumbing.public_dns_provider` says which).
 
 ## 1. Interview → `instance.yaml`
 
 Ask for each binding; never assume:
 
-- the tailnet domain (`domains.internal_suffix`) and, if the public lane is wanted
-  at all, the public wildcard domain (`domains.public_suffix`),
+- the tailnet domain (`domains.internal_suffix`),
+- **will there be public-facing apps?** Internal tools are always on the tailnet;
+  a public lane exists only for apps the internet must reach, and only with a
+  domain — one the team owns, or a free DuckDNS one. Yes → the wildcard domain
+  (`domains.public_suffix`) and who holds its DNS (`plumbing.public_dns_provider`).
+  No → `public_suffix` stays `""`, and 80/443 stay closed,
+- **who may reach the Coolify dashboard** (`exposure.coolify_ui`): `tailnet`,
+  `github` (adds GitHub's webhook ranges, so push-to-deploy works — the default),
+  or `internet` (2FA mandatory). The reasoning is `docs/platform.md`, *The Coolify
+  dashboard and push-to-deploy*,
+- where the server runs (`host.provider`) — decides which console
+  `docs/provisioning.md` describes,
 - project names (offer the defaults from this repo's `instance.yaml` shape:
   internal / public / infrastructure),
 - the canary name (default `whoami`),
@@ -82,6 +105,22 @@ names have moved between majors, so the version explains any doc/tool mismatch);
 many Docker networks the server has, which decides whether every later create must
 carry `destination_uuid` — record the count in the platform table too. If the MCP
 does not answer, stop — everything below depends on it, and the fix is precondition 1.
+
+**Then probe the firewall from outside.** `get_server` gives the host's public IP.
+From this machine, which is on the internet, try each port with a short timeout:
+
+```bash
+for p in 22 80 443 3000 8000 6001 6002; do
+  timeout 3 bash -c "</dev/tcp/<public-ip>/$p" 2>/dev/null && echo "$p OPEN" || echo "$p closed"
+done
+```
+
+Expected, from `instance.yaml`: 80 and 443 open only if `domains.public_suffix` is
+set; 8000 open only if `exposure.coolify_ui` is `internet` (in `github` mode this
+machine is not in GitHub's ranges, so 8000 must read *closed* here — that is the
+rule working); everything else closed, always. Any other answer is precondition 0 not
+met — stop and hand back the firewall section of `docs/provisioning.md`. Record the
+result and date in the *Dashboard exposure* row of `docs/infrastructure.md`.
 
 Optional, and never part of the bootstrap: MCP 3.x can also run *inside* Coolify in
 HTTP mode so remote clients (claude.ai, Claude Desktop) connect without a local
@@ -105,7 +144,11 @@ Deploy into `projects.infrastructure`:
   registrar's upstream docs plus the label rules in `docs/internal-services.md`,
   and write the reference copy as part of this step.
 - **The public-DNS pinner** (`plumbing.public_dns`) — only if a public lane was
-  chosen; the zone token goes in its env store. Never hand-add DNS records.
+  chosen; the token goes in its env store. Which pinner depends on
+  `plumbing.public_dns_provider`: a Cloudflare DDNS updater holding a zone-scoped
+  token, or the DuckDNS updater holding the account token. Never hand-add DNS
+  records. Also confirm the wildcard domain is set in Coolify's server settings and
+  ports 80/443 read *open* in the step-2 probe — the lane does not exist otherwise.
 
 Deploy each the `/host` way (pinned tags, no published ports, healthchecks), but
 into the infrastructure project and with no docktail labels of their own.
@@ -156,5 +199,11 @@ they only need re-rendering if `instance.yaml` changes.
 ## 7. Accept
 
 Run `/health` as the acceptance test. A clean sweep — every resource green, canary
-reachable, no drift — is what "set up" means; anything less is an open item to fix
-before handing the instance over.
+reachable, the outside probe matching `instance.yaml`, no published ports on the
+internal lane, no drift — is what "set up" means; anything less is an open item to
+fix before handing the instance over.
+
+If push-to-deploy was wanted (`exposure.coolify_ui` is `github` or `internet`), the
+last prepared step is the GitHub App: created once from Coolify's *Sources* page, with
+the instance URL set to what GitHub can reach (`docs/provisioning.md`, *Push-to-deploy*).
+Verify with a real push to a throwaway repo, not by reading the settings.

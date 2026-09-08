@@ -127,6 +127,45 @@ Checklist for the migration itself, beyond moving files:
    inventory and volumes tables — exist under those exact names (`/setup` step 6
    does this; keep it true).
 
+## 2026-09-08, second pass: the setup starts before Coolify exists
+
+Feedback from running the library with a team that vibe-codes its apps in another
+build kit: the library assumed a Coolify host on the tailnet as its starting point,
+and for that audience the hardest part is everything *before* that — the cloud VM,
+Tailscale, the Coolify install, and above all the firewall. Nothing in the library
+mentioned a firewall at all. Three decisions came out of it, all landed in this pass:
+
+- **Human checklist, skill verifies.** The console work (VM, Tailscale, Coolify,
+  cloud firewall) is a rendered runbook, `provisioning.md`, not a skill: a skill
+  cannot click a cloud console, and a doc a human can read start to finish is the
+  honest form. What a skill *can* do is verify it — `/setup` and `/health` probe the
+  public IP from the operator's machine, which is on the internet, so a port that
+  answers is the finding. The split is "human does, skill checks", the same
+  prepared-step discipline `/setup` already used for the tailnet preconditions.
+- **The lanes are fixed and the firewall enforces them.** Internal tools are always
+  Tailscale Services; the public lane needs a domain (owned, or a free DuckDNS one)
+  and exists only for public-facing apps. Docker-published ports bypass `ufw`, so the
+  cloud firewall outside the VM is the guarantee behind "no published ports". Its
+  rule set is a function of two new bindings the scaffolder now asks for explicitly:
+  `domains.public_suffix` (via a yes/no on public-facing apps first) and
+  `exposure.coolify_ui` (`tailnet` / `github` / `internet`).
+- **Push-to-deploy needs no domain.** Verified by the user: GitHub delivers webhooks
+  to `http://<public-ip>:8000` fine. What it needs is *reachability* of port 8000,
+  which is what `exposure.coolify_ui` encodes — `github` allow-lists GitHub's
+  published hook ranges; `internet` opens it with 2FA mandatory; `tailnet` forgoes
+  push-to-deploy. The runbook records which mode was verified how.
+
+Path-based routing through Traefik on the host's MagicDNS name was considered and
+rejected: MagicDNS gives one name per machine, so every tool becomes a path, which
+breaks apps that assume `/` and — decisive — collapses per-Service tailnet grants into
+one grant for everything. One name per tool stays.
+
+**Next**: a fresh-context trial of the scaffold plus `/setup` against a real, newly
+provisioned machine, by someone other than the author, friction log as the
+deliverable (`conventions.md`, *Trialing a skill*). Items marked *unverified* in
+`provisioning.md` — the `github` dashboard mode in particular, including the one-time
+GitHub App creation through the allow-listed port — are what that trial settles.
+
 ## Open items
 
 - **The deployment repo's `stacks/` lacks reference copies for the plumbing and

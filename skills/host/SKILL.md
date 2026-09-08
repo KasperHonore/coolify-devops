@@ -97,7 +97,11 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
   webhooks, auto-deploy on push, commit statuses, per-PR preview deployments) and
   needs configuring once per account; a plain public-repo source or deploy key works
   with a manually added webhook for push-to-deploy. Point it at the default branch —
-  a push to `main` then redeploys automatically.
+  a push to `main` then redeploys automatically. **Push-to-deploy needs GitHub to
+  reach the Coolify instance URL**: it works when `exposure.coolify_ui` is `github`
+  or `internet`, and cannot when it is `tailnet` — say so up front rather than
+  letting the first push silently not deploy (`docs/platform.md`, *The Coolify
+  dashboard and push-to-deploy*).
 - **Build pack**: a `Dockerfile` in the repo for anything long-lived (full control,
   reproducible); Nixpacks/Railpack only for quick zero-config starts.
 - **Zero-downtime**: rolling updates happen for applications *only* when a passing

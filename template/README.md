@@ -7,7 +7,8 @@ Code through the Coolify MCP.
 - `CLAUDE.md` — the rules every session follows. Start here.
 - `instance.yaml` — the bindings for this instance (tailnet, domains, project names).
 - `.claude/skills/` — `/setup`, `/host`, `/change-service`, `/health`, `/grant-access`.
-- `docs/` — platform runbooks and this instance's recorded state.
+- `docs/` — platform runbooks and this instance's recorded state. `docs/provisioning.md`
+  is the human checklist for the server itself: VM, Tailscale, Coolify, firewall.
 - `stacks/` — reference copies of what is deployed. Coolify is the write path.
 
 ## Running a session

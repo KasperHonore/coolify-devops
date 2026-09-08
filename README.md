@@ -20,9 +20,10 @@ This repo is two things at once:
 npx coolify-devops my-coolify        # or: npx github:KasperHonore/coolify-devops my-coolify
 ```
 
-The scaffolder interviews you — Coolify URL, tailnet domain, optional public domain,
-project names, canary, backup policy — and generates a deployment repo **specific to your
-instance**: `CLAUDE.md`, `instance.yaml`, the skills, and the runbooks and state docs all
+The scaffolder interviews you — where the server runs, Coolify URL, tailnet domain,
+whether you will host public-facing apps (and if so the domain: your own or a free DuckDNS
+one), who may reach the Coolify dashboard, project names, canary, backup policy — and
+generates a deployment repo **specific to your instance**: `CLAUDE.md`, `instance.yaml`, the skills, and the runbooks and state docs all
 rendered with your names and domains, plus a `.mcp.json` that reads the Coolify token from
 your shell. Nothing secret is ever written to a file, and nothing in it describes anyone
 else's instance.
@@ -40,15 +41,24 @@ and run `/setup`. It verifies the MCP, creates the projects, deploys the tailnet
 verification steps that prove the internal lane end to end, and rewrites the docs from the
 and fills in the state docs. `/health` is the acceptance test.
 
+No server yet? `docs/provisioning.md` in the generated repo is the checklist from an
+empty cloud account to a Coolify host that is reachable only over your tailnet: VM,
+Tailscale, the Coolify install, and the cloud firewall rules that follow from your two
+answers (public lane or not; who reaches the dashboard). It is written for Hetzner; any
+provider with a firewall outside the VM works the same way.
+
 Have ready before `/setup` — these are console steps the skill hands to you rather than
 pretends to do:
 
-- the Coolify host joined to your tailnet, with key expiry disabled on that node;
+- the server provisioned per `docs/provisioning.md`, firewall included — `/setup` probes
+  it from outside before it trusts anything;
+- the Coolify host joined to your tailnet with Tailscale SSH enabled (`tailscale up --ssh`)
+  and key expiry disabled on that node;
 - a Tailscale OAuth client with `devices:core` and `services` scopes, and an ACL
   `autoApprovers.services` entry for the registrar's tag;
-- public lane only: a Cloudflare API token scoped to the DNS zone.
+- public lane only: a DNS token — Cloudflare, scoped to the zone, or your DuckDNS token.
 
-`docs/tailnet-access.md` and `docs/internal-services.md` cover each.
+`docs/provisioning.md`, `docs/tailnet-access.md` and `docs/internal-services.md` cover each.
 
 ## What you get
 
@@ -62,13 +72,17 @@ pretends to do:
 | `.mcp.json` | `npx @masonator/coolify-mcp@latest` with the URL and token from `${COOLIFY_BASE_URL}` / `${COOLIFY_ACCESS_TOKEN}` |
 
 Flags for non-interactive use: `--yes`, `--coolify-url=`, `--internal-suffix=`,
-`--public-suffix=`, `--same-tailnet`, `--canary=`, `--backups=`, `--branch=`, `--no-git`. `npx coolify-devops --help` lists them.
+`--public-suffix=` / `--no-public`, `--dns-provider=`, `--coolify-ui=`, `--host-provider=`,
+`--same-tailnet`, `--canary=`, `--backups=`, `--branch=`, `--no-git`. `npx coolify-devops --help` lists them.
 
 ## Assumptions the library makes
 
 - **Software**: Coolify 4.x, docktail as the tailnet registrar, Traefik as the public proxy,
-  Cloudflare for public DNS. `instance.yaml` parameterises the *names*; swapping the
+  Cloudflare or DuckDNS for public DNS. `instance.yaml` parameterises the *names*; swapping the
   software invalidates whole runbook sections, not just bindings.
+- **Lanes are fixed**: internal tools are always Tailscale Services on the tailnet; the
+  public lane needs a domain and exists only for public-facing apps. The cloud firewall
+  outside the VM is what enforces that split, because Docker-published ports bypass `ufw`.
 - **The MCP is the only way in.** The skills never assume a shell on the host; `scheduled_tasks`
   `run_once` is the shell substitute.
 - **Coolify is the write path.** `stacks/` holds reference copies, never applied config.

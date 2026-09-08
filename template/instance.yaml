@@ -13,12 +13,24 @@ coolify:
   url: {{COOLIFY_URL}}             # [pivot] the Coolify UI/API base URL — not a secret; the token never lives here
   version_observed: ""           # [pivot] last confirmed Coolify version; /setup records it
 
+host:
+  provider: {{HOST_PROVIDER}}             # [pivot] hetzner | other — whose cloud firewall docs/provisioning.md addresses
+
 domains:
   internal_suffix: {{INTERNAL_SUFFIX}}   # [pivot] Tailscale tailnet domain (internal lane)
-  public_suffix: {{PUBLIC_SUFFIX}}       # [pivot] Traefik wildcard domain (public lane); "" = no public lane
+  public_suffix: {{PUBLIC_SUFFIX}}       # [pivot] Traefik wildcard domain (public lane); "" = no public lane.
+                                         # Internal tools are always on the tailnet; the public lane exists
+                                         # only for public-facing apps, and only with a domain.
   operator_tailnet: {{OPERATOR_TAILNET}}   # [pivot] the tailnet of the machine this repo is
                                          # operated FROM — equal to internal_suffix when it is
                                          # the same tailnet; "" when unknown or not on one
+
+exposure:
+  coolify_ui: {{UI_EXPOSURE}}            # [pivot] who may reach the Coolify dashboard/API on port 8000:
+                                         # tailnet (team only) | github (tailnet + GitHub's webhook
+                                         # ranges, for push-to-deploy) | internet (anyone; 2FA on).
+                                         # Decides the firewall rules in docs/provisioning.md and what
+                                         # /setup and /health expect the outside probe to show.
 
 projects:
   internal: {{PROJECT_INTERNAL}}       # tailnet-only resources
@@ -32,7 +44,8 @@ canary: {{CANARY}}                   # [pivot] reference internal service; prove
 
 plumbing:
   tailnet_registrar: {{REGISTRAR}}          # registers labelled containers as Tailscale Services
-  public_dns: {{PUBLIC_DNS}}          # pins the public wildcard A record, every 5 min
+  public_dns: {{PUBLIC_DNS}}          # pins the public wildcard A record, every 5 min (public lane only)
+  public_dns_provider: {{DNS_PROVIDER}}     # [pivot] cloudflare | duckdns — who holds the public wildcard record
 
 policy:
   backups_default: {{BACKUPS_DEFAULT}}    # [pivot] recommend-but-no (recommend, record the decision) or required

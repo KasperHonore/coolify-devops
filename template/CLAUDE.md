@@ -39,16 +39,32 @@ the domain, and the networking.
 
 **Internal (default)** — reachable only over the tailnet. No domain, no published port,
 not on the internet. Registered as a Tailscale Service by `{{REGISTRAR}}`. Lives in the
-**{{PROJECT_INTERNAL}}** project.
+**{{PROJECT_INTERNAL}}** project. Internal tools are *always* on the tailnet; there is no
+other internal option.
 
 **Public** — reachable on the internet at `<name>.{{PUBLIC_SUFFIX}}` via Traefik, which
 handles TLS. DNS is automatic; never add records by hand. Lives in the **{{PROJECT_PUBLIC}}**
-project.{{^HAS_PUBLIC}} No public lane is configured yet — `domains.public_suffix` in
-`instance.yaml` is empty; set it (and deploy `{{PUBLIC_DNS}}`) before the first public
+project. The public lane exists only with a domain (your own, or a free DuckDNS
+one).{{^HAS_PUBLIC}} **This instance has no public lane** — `domains.public_suffix` in
+`instance.yaml` is empty and ports 80/443 are closed at the firewall. Nothing here is
+internet-reachable, and nothing should be; to add a public lane, set the suffix, open
+80/443 per `docs/provisioning.md`, and deploy `{{PUBLIC_DNS}}` before the first public
 resource.{{/HAS_PUBLIC}}
 
 Default to internal. Go public only when an external party, inbound webhook, or OAuth
 callback genuinely requires it — a tool receiving third-party webhooks is the bar.
+
+**The firewall is what enforces the lanes.** "No published port" is a convention; the
+cloud firewall in front of the host is the guarantee — Docker's own port publishing walks
+straight past `ufw`, so a stray `ports:` line on an internal tool would put it on the
+public IP if the cloud firewall were not there. The rules, which follow from the lane
+answer and `exposure.coolify_ui`, are in `docs/provisioning.md`; `/setup` and `/health`
+probe the public IP from outside to prove they hold. The Coolify dashboard itself
+(port 8000) is reachable by: **{{UI_EXPOSURE}}**{{#UI_GITHUB}} — the tailnet plus
+GitHub's webhook ranges, so push-to-deploy works without the dashboard being on the open
+internet{{/UI_GITHUB}}{{#UI_TAILNET}} — over the tailnet only; GitHub cannot deliver
+push-to-deploy webhooks to it{{/UI_TAILNET}}{{#UI_INTERNET}} — anyone; 2FA on the
+Coolify account is mandatory{{/UI_INTERNET}}.
 
 A third project, **{{PROJECT_INFRA}}**, holds the platform plumbing that makes both lanes
 work (`{{REGISTRAR}}` for the tailnet, `{{PUBLIC_DNS}}` for public DNS). It is not
@@ -100,6 +116,8 @@ membership only — publishing a service is `/host`, its labels are `/change-ser
 - **`/setup`** — bootstrap a fresh Coolify instance or pivot this repo to a
 different one: interview → `instance.yaml`, projects, plumbing, canary, repo
 scaffold, `/health` as acceptance. The endgame it serves is `docs/skill-library.md`.
+What comes *before* it — the VM, Tailscale, the Coolify install, the firewall — is a
+human checklist, `docs/provisioning.md`, that `/setup` hands over and then verifies.
 
 The docs stay authoritative; the skills follow them. When a skill and a doc disagree,
 the doc wins — then fix the skill.

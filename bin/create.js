@@ -12,6 +12,11 @@
 //   --coolify-url=X         https://coolify.example.com (not secret; the token stays in your shell)
 //   --internal-suffix=X     tailnet domain, e.g. example-name.ts.net
 //   --public-suffix=X       public wildcard domain, e.g. apps.example.com ("" = no public lane)
+//   --no-public             no public lane: internal tools only (the default under --yes)
+//   --dns-provider=X        cloudflare | duckdns — who holds the public wildcard record (default: by suffix)
+//   --coolify-ui=X          tailnet | github | internet — who may reach the Coolify dashboard, port 8000
+//                           (default github: tailnet + GitHub's webhook ranges, so push-to-deploy works)
+//   --host-provider=X       hetzner | other — whose cloud firewall the provisioning runbook addresses
 //   --same-tailnet          the machine running Claude Code is on the Coolify host's tailnet
 //   --canary=X              reference internal service (default whoami)
 //   --backups=X             recommend-but-no | required (default recommend-but-no)
@@ -35,6 +40,7 @@ function parseArgs(argv) {
     if (a === '--help' || a === '-h') out.help = true;
     else if (a === '--yes' || a === '-y') out.yes = true;
     else if (a === '--same-tailnet') out.sameTailnet = true;
+    else if (a === '--no-public') out.noPublic = true;
     else if (a === '--no-git') out.noGit = true;
     else if (a === '--render') out.render = true;
     else if (a.startsWith('--') && a.includes('=')) {
@@ -88,14 +94,33 @@ function render(tpl, vars) {
   return out.replace(/\{\{([A-Z_]+)\}\}/g, (m, key) => (key in vars ? String(vars[key]) : m));
 }
 
+const UI_EXPOSURES = ['tailnet', 'github', 'internet'];
+const DNS_PROVIDERS = ['cloudflare', 'duckdns'];
+const HOST_PROVIDERS = ['hetzner', 'other'];
+const dnsProviderFor = suffix => (/\.duckdns\.org$/i.test(suffix || '') ? 'duckdns' : 'cloudflare');
+const pinnerNameFor = provider => (provider === 'duckdns' ? 'duckdns' : 'cloudflare-ddns');
+
 function varsFromInstance(inst) {
   const d = inst.domains || {}, p = inst.projects || {}, pl = inst.plumbing || {}, po = inst.policy || {};
+  const ex = inst.exposure || {}, host = inst.host || {};
   const internal = d.internal_suffix || '';
   const pub = d.public_suffix || '';
+  const dnsProvider = pl.public_dns_provider || dnsProviderFor(pub);
+  const ui = UI_EXPOSURES.includes(ex.coolify_ui) ? ex.coolify_ui : 'github';
+  const hostProvider = HOST_PROVIDERS.includes(host.provider) ? host.provider : 'hetzner';
   return {
     INTERNAL_SUFFIX: internal || '<your-tailnet>.ts.net',
     PUBLIC_SUFFIX: pub || '<public-suffix>',
     HAS_PUBLIC: Boolean(pub),
+    DNS_PROVIDER: dnsProvider,
+    DNS_CLOUDFLARE: dnsProvider === 'cloudflare',
+    DNS_DUCKDNS: dnsProvider === 'duckdns',
+    UI_EXPOSURE: ui,
+    UI_TAILNET: ui === 'tailnet',
+    UI_GITHUB: ui === 'github',
+    UI_INTERNET: ui === 'internet',
+    HOST_PROVIDER: hostProvider,
+    HOST_HETZNER: hostProvider === 'hetzner',
     SAME_TAILNET: Boolean(internal) && d.operator_tailnet === internal,
     PROJECT_INTERNAL: p.internal || 'Internal tools',
     PROJECT_PUBLIC: p.public || 'Public tools',
@@ -103,7 +128,7 @@ function varsFromInstance(inst) {
     ENVIRONMENT: inst.environment || 'production',
     CANARY: inst.canary || 'whoami',
     REGISTRAR: pl.tailnet_registrar || 'docktail',
-    PUBLIC_DNS: pl.public_dns || 'cloudflare-ddns',
+    PUBLIC_DNS: pl.public_dns || pinnerNameFor(dnsProvider),
     COMMIT_BRANCH: po.commit_branch || 'main',
     BACKUPS_DEFAULT: po.backups_default || 'recommend-but-no',
     OPERATOR_TAILNET: d.operator_tailnet || '',
@@ -122,6 +147,20 @@ async function askYesNo(rl, question, def) {
   const a = (await rl.question(`${question} ${def ? '[Y/n]' : '[y/N]'}: `)).trim().toLowerCase();
   if (a === '') return def;
   return a === 'y' || a === 'yes';
+}
+async function askChoice(rl, question, choices, def) {
+  for (;;) {
+    const a = (await rl.question(`${question} (${choices.join(' | ')}) [${def}]: `)).trim().toLowerCase();
+    if (a === '') return def;
+    if (choices.includes(a)) return a;
+    console.log(`  one of: ${choices.join(', ')}`);
+  }
+}
+function checkChoice(name, value, choices) {
+  if (value !== undefined && !choices.includes(value)) {
+    console.error(`--${name} must be one of: ${choices.join(', ')}`);
+    process.exit(1);
+  }
 }
 
 function run(cmd, args, cwd) {
@@ -180,13 +219,30 @@ async function main() {
   let canary = args.canary || 'whoami', branch = args.branch || 'main';
   let coolifyUrl = args.coolifyUrl, backups = args.backups || 'recommend-but-no';
   let projInternal = 'Internal tools', projPublic = 'Public tools', projInfra = 'Infrastructure';
+  let dnsProvider = args.dnsProvider, uiExposure = args.coolifyUi, hostProvider = args.hostProvider;
+  checkChoice('dns-provider', dnsProvider, DNS_PROVIDERS);
+  checkChoice('coolify-ui', uiExposure, UI_EXPOSURES);
+  checkChoice('host-provider', hostProvider, HOST_PROVIDERS);
+  if (args.noPublic) pub = '';
   if (!args.yes && process.stdin.isTTY) {
     const { createInterface } = require('node:readline/promises');
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     console.log('\nInstance bindings (Enter to accept a default; leave blank to fill in later with /setup)\n');
-    coolifyUrl = coolifyUrl ?? await ask(rl, 'Coolify URL (e.g. https://coolify.example.com; the token is never asked for)', '');
+    hostProvider = hostProvider ?? await askChoice(rl, 'Where does (or will) the Coolify server run?', HOST_PROVIDERS, 'hetzner');
+    coolifyUrl = coolifyUrl ?? await ask(rl, 'Coolify URL (e.g. https://coolify.example.com or http://<tailnet-ip>:8000; the token is never asked for)', '');
     internal = internal ?? await ask(rl, 'Tailnet domain of the Coolify host (e.g. example-name.ts.net)', '');
-    pub = pub ?? await ask(rl, 'Public wildcard domain, if you want a public lane (e.g. apps.example.com)', '');
+    // The lane decision is explicit. Internal tools are always on the tailnet; the
+    // public lane exists only when there are public-facing apps, and needs a domain.
+    if (pub === undefined) {
+      const wantsPublic = await askYesNo(rl, 'Will you host public-facing apps (reachable from the internet, not just your team)?', false);
+      pub = wantsPublic
+        ? await ask(rl, 'Public wildcard domain: one you own (e.g. apps.example.com) or a free DuckDNS one (e.g. team.duckdns.org)', '')
+        : '';
+    }
+    if (pub) dnsProvider = dnsProvider ?? await askChoice(rl, 'Who holds that domain\'s DNS?', DNS_PROVIDERS, dnsProviderFor(pub));
+    uiExposure = uiExposure ?? await askChoice(rl,
+      'Who may reach the Coolify dashboard (port 8000)? tailnet = your team only; github = tailnet + GitHub\'s webhook ranges, so push-to-deploy works; internet = anyone, protect it with 2FA',
+      UI_EXPOSURES, 'github');
     same = args.sameTailnet ?? await askYesNo(rl, 'Is the machine you run Claude Code from on that same tailnet?', false);
     projInternal = await ask(rl, 'Coolify project for tailnet-only resources', projInternal);
     projPublic = await ask(rl, 'Coolify project for internet-reachable resources', projPublic);
@@ -199,14 +255,19 @@ async function main() {
   internal = internal || '';
   pub = pub || '';
   coolifyUrl = (coolifyUrl || '').replace(/\/+$/, '');
+  dnsProvider = dnsProvider || dnsProviderFor(pub);
+  uiExposure = uiExposure || 'github';
+  hostProvider = hostProvider || 'hetzner';
 
   const inst = {
     coolify: { mcp_server: 'coolify', url: coolifyUrl, version_observed: '' },
+    host: { provider: hostProvider },
     domains: { internal_suffix: internal, public_suffix: pub, operator_tailnet: same ? internal : '' },
+    exposure: { coolify_ui: uiExposure },
     projects: { internal: projInternal, public: projPublic, infrastructure: projInfra },
     environment: 'production',
     canary,
-    plumbing: { tailnet_registrar: 'docktail', public_dns: 'cloudflare-ddns' },
+    plumbing: { tailnet_registrar: 'docktail', public_dns: pinnerNameFor(dnsProvider), public_dns_provider: dnsProvider },
     policy: { backups_default: backups, write_path: 'coolify-via-mcp', commit_branch: branch },
   };
   const vars = { ...varsFromInstance(inst), HAS_MCP_JSON: true };
@@ -257,18 +318,21 @@ Created ${rel}/
 ${gitDone ? '  git: initialised on ' + branch + ' with an initial commit' : '  git: not initialised (run git init yourself)'}
 
 Next
+  0. No server yet, or unsure the firewall is right? docs/provisioning.md is the
+     checklist: cloud VM -> Tailscale -> Coolify -> firewall rules for your answers
+     (${pub ? 'public lane on' : 'no public lane'}; dashboard reachable by: ${uiExposure}).
   1. In the shell you will run Claude Code from — never in a file in the repo:
-       export COOLIFY_BASE_URL=https://coolify.example.com
+       export COOLIFY_BASE_URL=${coolifyUrl || 'http://<tailnet-ip-of-the-host>:8000'}
        export COOLIFY_ACCESS_TOKEN=...      # read + write + deploy scopes; never root
   2. cd ${rel} && claude
      Approve the project MCP server when asked, then run /mcp to confirm it connected.
   3. /setup
-     Verifies the MCP, creates the projects, deploys the tailnet registrar and the canary,
-     and fills the two state files in docs/.
+     Verifies the MCP, probes the firewall from outside, creates the projects, deploys
+     the tailnet registrar and the canary, and fills the two state files in docs/.
 
 Have ready before /setup: the Coolify host joined to your tailnet, a Tailscale OAuth
-client with devices:core + services scopes, and — public lane only — a Cloudflare DNS
-token. docs/tailnet-access.md and docs/internal-services.md explain each.
+client with devices:core + services scopes${pub ? ', and a ' + (dnsProvider === 'duckdns' ? 'DuckDNS token' : 'Cloudflare DNS token scoped to the zone') : ''}.
+docs/provisioning.md, docs/tailnet-access.md and docs/internal-services.md explain each.
 `);
 }
 

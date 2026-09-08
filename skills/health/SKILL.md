@@ -38,6 +38,26 @@ territory and a separate decision.
   every service should read `ports=['tcp:443']` and its `/devices` should show
   `approved:auto` + `configured: ready`. Never echo those credentials.
 
+## 2b. Exposure — is the perimeter what `instance.yaml` says?
+
+Two checks, both read-only, both cheap; skip neither.
+
+- **Probe the public IP from here.** `get_server` for the address, then the loop in
+  `/setup` step 2 (`</dev/tcp/<ip>/<port>` with a 3 s timeout) over 22, 80, 443,
+  3000, 8000, 6001, 6002. Expected: 80/443 open only with a public lane
+  (`domains.public_suffix` set), 8000 open only when `exposure.coolify_ui` is
+  `internet` (in `github` mode it must read closed from here), all else closed. A
+  port that answers when it should not is the lead finding of the whole sweep — it
+  means the cloud firewall is missing or wrong (`docs/provisioning.md`), not that
+  some container is misconfigured.
+- **Scan the internal lane for published ports.** For every resource in
+  `projects.internal` (and `projects.infrastructure`), read the compose
+  (`get_service` / `get_application`; `ports_exposes` on applications is Coolify's
+  own field, not a published port) and flag any `ports:` entry or `ports_mappings`.
+  Internal tools are reached by the registrar over the container network; a
+  published port is a leak waiting for the firewall to be relaxed. Report it as
+  drift from the lane model even though the firewall currently masks it.
+
 ## 3. Drift — live vs. reference copies
 
 For each folder in `stacks/` with a compose copy: fetch the live compose
@@ -49,6 +69,7 @@ a sweep; which side is right is a decision for the user or a `/change-service` s
 ## 4. Report
 
 One table — resource, Coolify status, reachability check, drift — leading with anything
-actually broken, then drift, then the expected-unknowns marked as such. If nothing is
+actually broken (an unexpected open port first of all), then drift, then the
+expected-unknowns marked as such. If nothing is
 wrong, say so in one line; do not pad. Note anything the sweep could not check and why
 (e.g. internal browser-level reachability needs a human on the tailnet).
