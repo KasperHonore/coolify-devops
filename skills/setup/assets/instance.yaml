@@ -16,6 +16,13 @@ coolify:
 host:
   provider: {{HOST_PROVIDER}}             # [pivot] hetzner | other — whose cloud firewall docs/provisioning.md addresses
 
+operator:
+  on_host: {{ON_HOST_YAML}}              # [pivot] true when Claude Code runs on the Coolify host itself (the
+                                         # usual case). Then a shell exists here — the MCP stays the write
+                                         # path by policy — and the outside firewall probe cannot be run
+                                         # from here, because traffic to the host's own IP never crosses
+                                         # the cloud firewall.
+
 domains:
   internal_suffix: {{INTERNAL_SUFFIX}}   # [pivot] Tailscale tailnet domain (internal lane)
   public_suffix: {{PUBLIC_SUFFIX}}       # [pivot] Traefik wildcard domain (public lane); "" = no public lane.

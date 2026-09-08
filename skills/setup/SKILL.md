@@ -47,7 +47,7 @@ done because it was asked for:
 
    ```bash
    claude mcp add coolify \
-     -e COOLIFY_BASE_URL="https://<coolify-host>" \
+     -e COOLIFY_BASE_URL="https://<coolify-host>" \        # http://localhost:8000 on the host itself
      -e COOLIFY_ACCESS_TOKEN="$COOLIFY_ACCESS_TOKEN" \
      -- npx @masonator/coolify-mcp@latest
    ```
@@ -76,9 +76,38 @@ done because it was asked for:
 
 ## 1. Interview → `instance.yaml`
 
-Ask for each binding; never assume:
+**First, where is Claude Code running?** Ask with three options: on the Coolify host
+itself (the usual case, and the recommended one — `--on-host`), on another machine that
+is on the host's tailnet (`--same-tailnet`), or elsewhere. "Is it on the same tailnet?"
+alone misses the first, which changes what this skill can verify itself (step 2) and
+lets it *discover* the next bindings instead of asking for them.
 
-- the tailnet domain (`domains.internal_suffix`),
+**On the host, discover rather than ask** — and confirm what was found in one line:
+
+```bash
+tailscale status --json | jq -r '.MagicDNSSuffix'   # → domains.internal_suffix
+tailscale ip -4                                      # the host's tailnet IP
+curl -4 -s https://api.ipify.org                     # the host's public IP (for the probe)
+```
+
+The Coolify URL is then `http://localhost:8000` — do not ask for it. If `tailscale`
+is not installed or not signed in, that is precondition 2 not met; hand over section 2
+of `docs/provisioning.md` and stop.
+
+**Read every free-text answer as a signal.** When the user types something instead
+of picking an option, the options were wrong for them: answer what they asked, then
+re-ask the question with better options. Two that have happened: "can I choose my
+own?" for the tailnet domain (below), and a Coolify URL typed without a scheme
+(`localhost:8000` — the scaffolder adds `http://`, but confirm it).
+
+Ask for each remaining binding; never assume:
+
+- the tailnet domain (`domains.internal_suffix`) when not discovered above. It is
+  **assigned by Tailscale**, not chosen: the `<name>.ts.net` under *DNS* in the admin
+  console. It *can* be changed there (DNS → Tailnet name → rename, from a set of
+  generated names; custom names are not offered), and every internal URL follows it —
+  so if the team wants a different one, rename first, then bind. Point them at the
+  console rather than accepting a made-up value,
 - **will there be public-facing apps?** Internal tools are always on the tailnet;
   a public lane exists only for apps the internet must reach, and only with a
   domain — one the team owns, or a free DuckDNS one. Yes → the wildcard domain
@@ -128,7 +157,12 @@ carry `destination_uuid` — record the count in the platform table too. If the 
 does not answer, stop — everything below depends on it, and the fix is precondition 1.
 
 **Then probe the firewall from outside.** `get_server` gives the host's public IP.
-From this machine, which is on the internet, try each port with a short timeout:
+The probe has to come from a machine that is **off the tailnet and not the host**:
+traffic from the host to its own public IP never crosses the cloud firewall, so run
+on the host (`operator.on_host` true) it would show every port open and prove nothing.
+On the host, hand the loop below to the human as a prepared step — "from your
+laptop with Tailscale off" — and wait for the pasted result. Off the host, run it
+here. Either way, try each port with a short timeout:
 
 ```bash
 for p in 22 80 443 3000 8000 6001 6002; do

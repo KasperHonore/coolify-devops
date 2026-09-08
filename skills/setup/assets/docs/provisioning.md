@@ -68,8 +68,13 @@ curl -fsSL https://tailscale.com/install.sh | sh
 sudo tailscale up --ssh
 ```
 
-Follow the login URL it prints and sign in to the tailnet named in
-`domains.internal_suffix` (`{{INTERNAL_SUFFIX}}`).
+Follow the login URL it prints and sign in to your tailnet. Its domain — the
+`<name>.ts.net` every internal tool's address ends in — is **assigned by Tailscale**,
+shown under *DNS* in the admin console, and can be renamed there from a set of
+generated names (not to a custom word). Rename it *before* anything is bound to it;
+`domains.internal_suffix` in `instance.yaml` must match what the console shows
+({{INTERNAL_SUFFIX}} here). On the server, `tailscale status --json | jq -r
+.MagicDNSSuffix` prints it.
 
 **Enable Tailscale SSH on the Coolify host — that is the `--ssh` flag, and it is not
 optional here.** It runs an SSH server that answers **only on the Tailscale IP**,
@@ -309,8 +314,10 @@ edited on GitHub by hand.
 
 ## 7. Verify from the outside, then hand over to `/setup`
 
-From any machine on the internet **that is not on the tailnet** (or with Tailscale
-off), probe the public IP:
+From any machine on the internet **that is not on the tailnet and is not the server
+itself** — your laptop with Tailscale switched off is the usual choice — probe the
+public IP. (From the server, traffic to its own public IP never crosses the cloud
+firewall, so every port looks open; that result means nothing.)
 
 ```bash
 IP=<public-ip>
@@ -330,7 +337,8 @@ Expected for this instance:
 
 Then from a machine **on** the tailnet: `curl -sI http://<tailnet-ip>:8000` answers.
 
-**Done when** both match. `/setup` repeats the outside probe itself before it trusts the
-instance, and records the result in `docs/infrastructure.md`; `/health` repeats it on
-every sweep. From here: export `COOLIFY_BASE_URL={{#COOLIFY_URL}}{{COOLIFY_URL}}{{/COOLIFY_URL}}{{^COOLIFY_URL}}http://<tailnet-ip>:8000{{/COOLIFY_URL}}` and the
+**Done when** both match. `/setup` asks for the outside probe before it trusts the
+instance{{^ON_HOST}} (and runs it itself when Claude Code is off the tailnet){{/ON_HOST}}, and records the result in
+`docs/infrastructure.md`; `/health` asks again on every sweep. From here: export
+`COOLIFY_BASE_URL={{#COOLIFY_URL}}{{COOLIFY_URL}}{{/COOLIFY_URL}}{{^COOLIFY_URL}}{{#ON_HOST}}http://localhost:8000{{/ON_HOST}}{{^ON_HOST}}http://<tailnet-ip>:8000{{/ON_HOST}}{{/COOLIFY_URL}}` and the
 token, start Claude Code in the deployment repo, and run `/setup`.

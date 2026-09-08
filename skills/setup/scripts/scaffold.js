@@ -18,7 +18,8 @@
 //   --coolify-ui=X          tailnet | github | internet — who may reach the Coolify dashboard, port 8000
 //                           (default github: tailnet + GitHub's webhook ranges, so push-to-deploy works)
 //   --host-provider=X       hetzner | other — whose cloud firewall the provisioning runbook addresses
-//   --same-tailnet          the machine running Claude Code is on the Coolify host's tailnet
+//   --on-host               Claude Code runs ON the Coolify host itself (the usual case; implies --same-tailnet)
+//   --same-tailnet          Claude Code runs elsewhere, on a machine that is on the Coolify host's tailnet
 //   --canary=X              reference internal service (default whoami)
 //   --backups=X             recommend-but-no | required (default recommend-but-no)
 //   --branch=X              commit branch (default main)
@@ -46,6 +47,7 @@ function parseArgs(argv) {
     if (a === '--help' || a === '-h') out.help = true;
     else if (a === '--yes' || a === '-y') out.yes = true;
     else if (a === '--same-tailnet') out.sameTailnet = true;
+    else if (a === '--on-host') out.onHost = true;
     else if (a === '--no-public') out.noPublic = true;
     else if (a === '--no-git') out.noGit = true;
     else if (a === '--render') out.render = true;
@@ -108,7 +110,8 @@ const pinnerNameFor = provider => (provider === 'duckdns' ? 'duckdns' : 'cloudfl
 
 function varsFromInstance(inst) {
   const d = inst.domains || {}, p = inst.projects || {}, pl = inst.plumbing || {}, po = inst.policy || {};
-  const ex = inst.exposure || {}, host = inst.host || {};
+  const ex = inst.exposure || {}, host = inst.host || {}, op = inst.operator || {};
+  const onHost = String(op.on_host) === 'true';
   const internal = d.internal_suffix || '';
   const pub = d.public_suffix || '';
   const dnsProvider = pl.public_dns_provider || dnsProviderFor(pub);
@@ -127,7 +130,8 @@ function varsFromInstance(inst) {
     UI_INTERNET: ui === 'internet',
     HOST_PROVIDER: hostProvider,
     HOST_HETZNER: hostProvider === 'hetzner',
-    SAME_TAILNET: Boolean(internal) && d.operator_tailnet === internal,
+    ON_HOST: onHost,
+    SAME_TAILNET: onHost || (Boolean(internal) && d.operator_tailnet === internal),
     PROJECT_INTERNAL: p.internal || 'Internal tools',
     PROJECT_PUBLIC: p.public || 'Public tools',
     PROJECT_INFRA: p.infrastructure || 'Infrastructure',
@@ -208,7 +212,8 @@ async function main() {
 
   // Bindings come in as flags; /setup asked the questions. Anything not given stays
   // blank ("" in instance.yaml) for /setup to fill after the MCP answers.
-  let internal = args.internalSuffix, pub = args.publicSuffix, same = Boolean(args.sameTailnet);
+  const onHost = Boolean(args.onHost);
+  let internal = args.internalSuffix, pub = args.publicSuffix, same = onHost || Boolean(args.sameTailnet);
   let canary = args.canary || 'whoami', branch = args.branch || 'main';
   let coolifyUrl = args.coolifyUrl, backups = args.backups || 'recommend-but-no';
   let projInternal = 'Internal tools', projPublic = 'Public tools', projInfra = 'Infrastructure';
@@ -219,7 +224,8 @@ async function main() {
   if (args.noPublic) pub = '';
   internal = internal || '';
   pub = pub || '';
-  coolifyUrl = (coolifyUrl || '').replace(/\/+$/, '');
+  coolifyUrl = (coolifyUrl || '').trim().replace(/\/+$/, '');
+  if (coolifyUrl && !/^https?:\/\//i.test(coolifyUrl)) coolifyUrl = 'http://' + coolifyUrl; // "localhost:8000" is a common answer
   dnsProvider = dnsProvider || dnsProviderFor(pub);
   uiExposure = uiExposure || 'github';
   hostProvider = hostProvider || 'hetzner';
@@ -227,6 +233,7 @@ async function main() {
   const inst = {
     coolify: { mcp_server: 'coolify', url: coolifyUrl, version_observed: '' },
     host: { provider: hostProvider },
+    operator: { on_host: onHost },
     domains: { internal_suffix: internal, public_suffix: pub, operator_tailnet: same ? internal : '' },
     exposure: { coolify_ui: uiExposure },
     projects: { internal: projInternal, public: projPublic, infrastructure: projInfra },
@@ -237,7 +244,7 @@ async function main() {
   };
   const vars = { ...varsFromInstance(inst), HAS_MCP_JSON: true };
   // instance.yaml is YAML, so empty strings must be quoted there.
-  const yamlVars = { ...vars, INTERNAL_SUFFIX: internal || '""', PUBLIC_SUFFIX: pub || '""', OPERATOR_TAILNET: (same ? internal : '') || '""', COOLIFY_URL: coolifyUrl || '""' };
+  const yamlVars = { ...vars, INTERNAL_SUFFIX: internal || '""', PUBLIC_SUFFIX: pub || '""', OPERATOR_TAILNET: (same ? internal : '') || '""', COOLIFY_URL: coolifyUrl || '""', ON_HOST_YAML: String(onHost) };
 
   fs.mkdirSync(target, { recursive: true });
 
@@ -281,11 +288,12 @@ Scaffolded ${rel}/
   stacks/README.md   what reference copies are; the change lore is docs/changing-a-resource.md
 ${gitDone ? '  git: committed on ' + branch : '  git: not initialised (run git init yourself)'}
   lane: ${pub ? 'public lane on (' + pub + ', ' + dnsProvider + ')' : 'no public lane'}; dashboard reachable by: ${uiExposure}
+  operated from: ${onHost ? 'the Coolify host itself' : same ? 'a machine on the same tailnet' : 'a machine off the tailnet'}
 
 Human steps still ahead (the skill hands these over and verifies them):
   - docs/provisioning.md if the server, Tailscale, Coolify, or the firewall are not done yet
   - in the shell Claude Code runs from, never in a file:
-       export COOLIFY_BASE_URL=${coolifyUrl || 'http://<tailnet-ip-of-the-host>:8000'}
+       export COOLIFY_BASE_URL=${coolifyUrl || (onHost ? 'http://localhost:8000' : 'http://<tailnet-ip-of-the-host>:8000')}
        export COOLIFY_ACCESS_TOKEN=...      # read + write + deploy scopes; never root
     then restart claude so .mcp.json is picked up, and approve the project MCP server
   - a Tailscale OAuth client with devices:core + services scopes${pub ? ', and a ' + (dnsProvider === 'duckdns' ? 'DuckDNS token' : 'Cloudflare DNS token scoped to the zone') : ''}

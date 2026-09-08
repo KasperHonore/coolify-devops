@@ -8,7 +8,9 @@ hosting model: internal tools reach the team over Tailscale at `https://<name>.<
 public ones reach the internet at `https://<name>.<your-domain>` via Traefik, and every
 operation goes through the MCP — no SSH, no `docker` CLI on the host.
 
-Five [Agent Skills](https://agentskills.io), installed with the [skills CLI](https://skills.sh):
+Five [Agent Skills](https://agentskills.io), installed with the [skills CLI](https://skills.sh).
+The usual setup is Claude Code running **on the Coolify host itself**, over Tailscale
+SSH, with the skills in a directory there:
 
 ```bash
 mkdir my-coolify && cd my-coolify
@@ -16,9 +18,10 @@ npx skills add KasperHonore/coolify-devops -a claude-code -y
 claude
 ```
 
-Then run `/setup`. It interviews you — where the server runs, tailnet domain, whether
-you will host public-facing apps (and if so the domain: your own or a free DuckDNS one),
-who may reach the Coolify dashboard — and scaffolds the deployment repo around the
+Then run `/setup`. It interviews you — where Claude Code runs (on the host, it reads the
+tailnet domain and IPs itself), where the server runs, whether you will host
+public-facing apps (and if so the domain: your own or a free DuckDNS one), who may
+reach the Coolify dashboard — and scaffolds the deployment repo around the
 skills: `CLAUDE.md`, `instance.yaml`, `.mcp.json` (reads the Coolify token from your
 shell, never a file), and the runbooks in `docs/` rendered for *your* instance. Then it
 hands you the human steps it cannot do — `docs/provisioning.md` covers the VM, Tailscale,

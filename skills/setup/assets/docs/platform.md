@@ -92,9 +92,10 @@ in `instance.yaml`:
 | TCP 22 | never — SSH goes over the tailnet (Tailscale SSH, or the tailnet IP) |
 
 Everything else is closed, including 8000 in `tailnet` mode and every port a resource
-might accidentally publish. `/setup` and `/health` probe the public IP from the operator's
-machine — which is on the internet, so a connection *succeeding* is the finding — and
-`/health` also scans internal-lane composes for `ports:`. Three layers: the convention
+might accidentally publish. `/setup` and `/health` have the public IP probed from a
+machine off the tailnet and not the host — a connection *succeeding* is the finding —
+and `/health` also scans internal-lane composes for `ports:`. The probe cannot come
+from the host itself: traffic to its own public IP never crosses the cloud firewall. Three layers: the convention
 in `/host`, the scan in `/health`, the firewall for when both are missed.
 
 ### The Coolify dashboard and push-to-deploy
@@ -232,10 +233,12 @@ zero standalone databases.** Consequences worth knowing before you plan work:
 
 ---
 
-## Working through MCP: there is no shell, but there is `run_once`
+## Working through MCP: the MCP is the write path, and there is `run_once`
 
-There is no exec tool and no SSH from here — Coolify runs on a separate host, reached only
-through the MCP server. That makes a whole class of question feel unanswerable: is the file
+{{#ON_HOST}}Claude Code runs on the Coolify host here, so a shell exists — and it is still not the
+way to change anything (`CLAUDE.md`, *The MCP is the only way in*: read-only shell
+checks yes, mutations never). {{/ON_HOST}}{{^ON_HOST}}There is no exec tool and no SSH from here — Coolify runs on a separate host, reached only
+through the MCP server. {{/ON_HOST}}That makes a whole class of question feel unanswerable: is the file
 mount actually a file? is anything listening on that port? did that container really get
 recreated? It is not. **`scheduled_tasks` with `action: run_once` runs an arbitrary command
 in a named service container and returns its stdout.**

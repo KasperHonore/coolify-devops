@@ -42,9 +42,13 @@ territory and a separate decision.
 
 Two checks, both read-only, both cheap; skip neither.
 
-- **Probe the public IP from here.** `get_server` for the address, then the loop in
+- **Probe the public IP from outside.** `get_server` for the address, then the loop in
   `/setup` step 2 (`</dev/tcp/<ip>/<port>` with a 3 s timeout) over 22, 80, 443,
-  3000, 8000, 6001, 6002. Expected: 80/443 open only with a public lane
+  3000, 8000, 6001, 6002 — run here only if this machine is neither the host nor on
+  the tailnet (`operator.on_host` false and `domains.operator_tailnet` empty in
+  `instance.yaml`); otherwise the loop is a prepared step for a human on a machine
+  off the tailnet, and a sweep that could not get the answer says so rather than
+  reporting the perimeter as checked. Expected: 80/443 open only with a public lane
   (`domains.public_suffix` set), 8000 open only when `exposure.coolify_ui` is
   `internet` (in `github` mode it must read closed from here), all else closed. A
   port that answers when it should not is the lead finding of the whole sweep — it

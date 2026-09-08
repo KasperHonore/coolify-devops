@@ -9,7 +9,27 @@ Everything is hosted on a single Coolify server, deployed as Docker Compose serv
 truth.
 
 ## The MCP is the only way in
+{{#ON_HOST}}
+**This repo is operated on the Coolify host itself.** A shell, the `docker` CLI and
+`/data/coolify` are all right here — and every change still goes **through the Coolify
+MCP only**. That is policy, not a limitation: Coolify's database is the source of truth,
+and a `docker compose up`, a `docker restart`, or an edit under `/data/coolify` changes
+the box behind Coolify's back, leaves the MCP's view stale, and is exactly the drift
+`/health` exists to catch. Never mutate anything from the shell. Read-only checks from
+the shell are fine and useful — `curl` against a tailnet URL, `tailscale status`,
+`docker ps` to confirm what the MCP reports — but the MCP's answer is the one that
+gets recorded.
 
+Because this machine is on the `{{INTERNAL_SUFFIX}}` tailnet, `https://<name>.{{INTERNAL_SUFFIX}}`
+resolves here and `curl -sI` against it is a real reachability check for internal
+services. Still do the MCP-side verification in `docs/internal-services.md` too — it
+proves the service is registered, not just that this machine can see it.
+
+**The outside firewall probe cannot be run from here.** Traffic from the host to its
+own public IP never crosses the cloud firewall, so every port would look open. That
+probe is a prepared step for a human on a machine off the tailnet (`docs/provisioning.md`,
+section 7); `/setup` and `/health` hand it over and record the answer.
+{{/ON_HOST}}{{^ON_HOST}}
 This repo operates Coolify **through the Coolify MCP only**. No SSH, no `docker` CLI,
 no reading or writing files on the server. Anything about live state — compose, env,
 logs, container health — goes through the MCP. If the MCP cannot do it, it cannot be
@@ -20,7 +40,7 @@ one internal services live on, so `https://<name>.{{INTERNAL_SUFFIX}}` resolves 
 and a browser-level check is possible locally. Still prefer the MCP-side verification in
 `docs/internal-services.md` — it proves the service is registered, not just that one
 machine can see it.
-{{/SAME_TAILNET}}{{^SAME_TAILNET}}
+{{/SAME_TAILNET}}{{/ON_HOST}}{{^SAME_TAILNET}}
 **Internal URLs do not resolve from here.** This repo is operated from a machine
 {{#OPERATOR_TAILNET}}on the **`{{OPERATOR_TAILNET}}`** tailnet — not {{/OPERATOR_TAILNET}}{{^OPERATOR_TAILNET}}that is **not** on {{/OPERATOR_TAILNET}}the `{{INTERNAL_SUFFIX}}` tailnet
 where internal services live. Being on some tailnet here does not put you on that one.

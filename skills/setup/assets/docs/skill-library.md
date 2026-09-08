@@ -16,6 +16,23 @@ The plugin form planned below is no longer the next step; the skills CLI covers 
 same ground (namespacing aside) with a far lower bar for consumers, and this section
 stands as the record of why the plugin route was considered.
 
+**First trial friction, 2026-09-08 (a real machine, someone other than the author),
+folded in the same evening:**
+
+- *"The Coolify host is this machine running Claude Code."* The library had only
+  modelled a remote operator; the primary scenario — skills installed on the host,
+  Claude Code over Tailscale SSH — had no binding. Now `operator.on_host`: the
+  "no shell" rule becomes policy (read-only shell checks yes, mutations through the
+  MCP only), the outside firewall probe becomes a prepared human step (from the host
+  it proves nothing), and the Coolify URL is `http://localhost:8000` without asking.
+- *"Can I choose my own?"* to the tailnet-domain question. Tailscale assigns it; it
+  can be renamed in the console from generated names, not to a custom word. On the
+  host the skill now reads it with `tailscale status --json` and confirms instead of
+  asking; off the host it explains where it comes from.
+- `localhost:8000` typed without a scheme. The scaffolder normalises it.
+- The general lesson, now in `/setup`: a free-text answer where options were offered
+  means the options were wrong — answer the question the user asked, then re-ask.
+
 Status, 2026-09-08, earlier: **the trigger fired; the physical split is done; distribution is
 a scaffolder; the plugin form is still ahead.** The user asked to share this repo so
 others can get it running with one command — the "first real second consumer" moment
