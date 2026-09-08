@@ -43,8 +43,12 @@ both install routes.** Two decisions, both reversing or sharpening what stands b
   `dist/index.json` against the discovery schema plus one artifact per skill, a bare
   `SKILL.md` or a reproducible tar.gz built from git; runs from the deployment repo
   too, via the git prefix). `.github/workflows/agent-skills.yml` runs `npm run check`
-  on every push and PR of the public repo and publishes an immutable release per
-  push to `main`. The publish script runs the same check before it pushes. Two
+  on every push and PR of the public repo and releases **one release per version**,
+  not per push as Vercel does: tag `v<version>` from `package.json`, notes from the
+  matching `CHANGELOG.md` entry (its presence is part of the version check), and a
+  refusal to re-release a version whose skill digests differ from what is already
+  out, made by CI and by the publish script before the push. The first release had
+  gone out under Vercel's `agent-skills-<sha>` name and was replaced. Two
   facts worth keeping: `git ls-tree` and `git archive` run from a subdirectory
   silently scope to that directory (`--full-tree` for the first, a top-level `cwd`
   for the second), which made the index build empty and then the setup skill's

@@ -373,9 +373,10 @@ node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render
 are yours and are never touched by a render.
 
 Each skill's frontmatter carries `license`, `compatibility` (what it needs from its
-environment) and `metadata.version`, which equals the package version. Every push to
-`main` that passes the checks publishes an immutable GitHub release with an
-[Agent Skills](https://agentskills.io) discovery index and one artifact per skill.
+environment) and `metadata.version`, which equals the package version. Each version
+has a `v<version>` tag and a GitHub release whose notes are its `CHANGELOG.md` entry,
+with an [Agent Skills](https://agentskills.io) discovery index and one artifact per
+skill attached. A version is never re-released with different skill content.
 
 This repository is the `library/` subtree of the author's own deployment repo, which
 consumes it exactly as a consumer does, so what every consumer receives and what the

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops with the Coolify MCP configured. Read-only; needs network access to the Coolify API and, optionally, the Tailscale and Hetzner APIs.
 metadata:
   author: KasperHonore
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Estate health sweep

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run inside the directory that will become the deployment repo, on a machine with the Coolify MCP configured and Node 18+ for the bundled scaffolder. Needs network access to the Coolify API and, optionally, the Tailscale and Hetzner APIs.
 metadata:
   author: KasperHonore
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Set up an instance

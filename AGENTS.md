@@ -72,8 +72,19 @@ contributor guide import for people cloning the repo.
 
 ## Releasing
 
-Bump `version` in `package.json` and run `npm run validate:versions`; it tells you
-which files to update. Publishing is `npm run publish-library` from the deployment
-repo. On the public repo, every push to `main` that touches `skills/` publishes an
-immutable GitHub release carrying an Agent Skills discovery index and one artifact per
-skill, built by `scripts/build-discovery-index.mjs`.
+One release per version, named by the version. Any change to a skill that is going
+to be published needs, in the same change:
+
+1. `version` bumped in `package.json`, `.claude-plugin/plugin.json`, and every skill's
+   `metadata.version` (`npm run validate:versions` lists what is out of sync);
+2. a `## <version> — <date>` entry at the top of `CHANGELOG.md`, in plain words. It
+   becomes the release notes.
+
+Publishing is `npm run publish-library` from the deployment repo. On the public repo,
+a push to `main` runs the checks and then, if no `v<version>` release exists, creates
+one: tag `v<version>`, title `coolify-devops v<version>`, the changelog entry as
+notes, and the Agent Skills discovery index plus one artifact per skill attached,
+built by `scripts/build-discovery-index.mjs`. A version that is already released is
+left alone when the skill content is identical (docs-only pushes) and fails the run
+when it differs; the publish script makes the same comparison before it pushes, so
+the failure happens here rather than in CI.

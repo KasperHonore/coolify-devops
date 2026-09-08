@@ -18,28 +18,36 @@ jobs:
           node-version: '20'
       - run: npm run check
 
-  publish-discovery:
+  release:
     if: github.event_name == 'push'
     needs: check
     concurrency:
-      group: agent-skills-discovery-publish
-      cancel-in-progress: true
+      group: release
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: agent-skills-${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: node scripts/build-discovery-index.mjs "https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}"
-      - run: |
-          gh release view "$RELEASE_TAG" >/dev/null 2>&1 ||
-            gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" \
-              --title "Agent Skills ${{ github.sha }}" \
-              --notes "Automated Agent Skills discovery release for ${{ github.sha }}."
-          gh release upload "$RELEASE_TAG" dist/* --clobber
-          gh release edit "$RELEASE_TAG" --draft=false --latest
+      - id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - run: node scripts/build-discovery-index.mjs "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}"
+      - name: Release v${{ steps.version.outputs.version }}
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release download "$TAG" --pattern index.json --output released-index.json
+            if node scripts/compare-index.mjs dist/index.json released-index.json; then
+              echo "$TAG is already released with identical skill content; nothing to do"
+              exit 0
+            fi
+            echo "::error::$TAG is already released with different skill content. Bump version in package.json (npm run validate:versions lists every file to update) and add the CHANGELOG.md entry."
+            exit 1
+          fi
+          node scripts/changelog-section.mjs "${{ steps.version.outputs.version }}" > notes.md
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "coolify-devops $TAG" --notes-file notes.md --latest dist/*

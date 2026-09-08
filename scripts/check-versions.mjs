@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Every version the library states must equal package.json's: the plugin manifest
-// and each skill's metadata.version. Fails with the list of files to fix.
+// Every version the library states must equal package.json's: the plugin manifest,
+// each skill's metadata.version, and a CHANGELOG.md entry. Fails with the list to fix.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -20,6 +20,9 @@ for (const name of readdirSync(join(root, 'skills'))) {
   const declared = fm.match(/^name:\s*(.+)$/m)?.[1]?.trim();
   if (declared !== name) wrong.push(`skills/${name}/SKILL.md: name "${declared}" != directory`);
 }
+
+const changelog = readFileSync(join(root, 'CHANGELOG.md'), 'utf8');
+if (!new RegExp(`^## ${version.replace(/\./g, '\\.')}\\b`, 'm').test(changelog)) wrong.push(`CHANGELOG.md: no "## ${version}" entry`);
 
 if (wrong.length) {
   console.error(`package.json is ${version}; out of sync:\n  ${wrong.join('\n  ')}`);

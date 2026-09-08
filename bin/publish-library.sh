@@ -34,6 +34,18 @@ if grep -rnE "$PATTERN" library/ --exclude-dir=node_modules \
   echo "refusing: instance-looking strings in library/ (see above)"; exit 1
 fi
 
+# Version guard. A version already released on the public repo may be republished only
+# with identical skill content; anything else needs a bump and a CHANGELOG entry, or
+# CI fails after the push instead of the script failing before it.
+VERSION="$(node -p "require('./library/package.json').version")"
+REPO_URL="$(git remote get-url "$REMOTE" | sed -E 's#^git@github.com:#https://github.com/#; s#\.git$##')"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+if curl -fsSL "$REPO_URL/releases/download/v$VERSION/index.json" -o "$TMP/released.json" 2>/dev/null; then
+  (cd library && node scripts/build-discovery-index.mjs "$REPO_URL/releases/download/v$VERSION" >/dev/null && cp dist/index.json "$TMP/local.json" && rm -rf dist)
+  node library/scripts/compare-index.mjs "$TMP/local.json" "$TMP/released.json" \
+    || { echo "refusing: v$VERSION is already released with different skill content; bump the version in library/package.json and add the CHANGELOG entry"; exit 1; }
+fi
+
 git subtree split --prefix=library -b library-main >/dev/null 2>&1
 git push "$REMOTE" "+library-main:main"
 git branch -D library-main >/dev/null
