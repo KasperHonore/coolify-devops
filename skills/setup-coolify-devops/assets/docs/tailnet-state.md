@@ -3,11 +3,11 @@
 The instance half of `tailnet-access.md`: what the policy file says, which credentials
 exist and with what scopes, and the per-tool decisions that bear on access. The
 procedures and judgment live in `tailnet-access.md`; this file only records state, and
-`/grant-access` and `/setup` write here.
+`/grant-access` and `/setup-coolify-devops` write here.
 
 ## Where we are today
 
-_(Paste the policy's grants here as `/setup` finds them. A fresh tailnet usually has
+_(Paste the policy's grants here as `/setup-coolify-devops` finds them. A fresh tailnet usually has
 the blanket grant:)_
 
 ```json

@@ -5,10 +5,10 @@ library is installed with `npx skills add KasperHonore/coolify-devops`; the npm
 scaffolder is gone. What forced the shape: the skills CLI installs *only* skill
 directories, nothing outside them, and `npx skills update` fires only when a file
 inside a skill folder changes. So the runbook templates and the renderer moved *into*
-the setup skill (`skills/setup/assets/`, `skills/setup/scripts/scaffold.js`), and
-`/setup` now creates the deployment repo itself: interview → flags → render. The
+the setup skill (`skills/setup-coolify-devops/assets/`, `skills/setup-coolify-devops/scripts/scaffold.js`), and
+`/setup-coolify-devops` now creates the deployment repo itself: interview → flags → render. The
 other four skills keep reading `docs/` in the deployment repo — they depend on the
-repo `/setup` produced, never on the setup skill's files, which is the one-level-deep,
+repo `/setup-coolify-devops` produced, never on the setup skill's files, which is the one-level-deep,
 no-cross-skill-paths shape the spec and the well-regarded multi-skill repos use. The
 update loop a consumer runs is `npx skills update` then `--render`; the living-runbook
 problem's transport half is thereby solved, the contribution half is still ours.
@@ -30,7 +30,7 @@ folded in the same evening:**
   host the skill now reads it with `tailscale status --json` and confirms instead of
   asking; off the host it explains where it comes from.
 - `localhost:8000` typed without a scheme. The scaffolder normalises it.
-- The general lesson, now in `/setup`: a free-text answer where options were offered
+- The general lesson, now in `/setup-coolify-devops`: a free-text answer where options were offered
   means the options were wrong — answer the question the user asked, then re-ask.
 - *"I ran the export command. Hopefully that's permanent after reboot."* It is not, and
   "in your shell, never in a file" invited the misreading. The prepared step now hands
@@ -57,7 +57,7 @@ portable/instance split this file had planned to be *physical* immediately:
   `npx github:KasperHonore/coolify-devops <dir>` — scaffolds a deployment repo from it:
   skills copied, and everything else — `CLAUDE.md`, `instance.yaml`, every runbook in
   `docs/`, the two state docs — rendered from the interview so the repo reads as the
-  consumer's own instance; `.mcp.json` reads the token from the shell. `/setup` fills the skeletons. The GitHub repo is the `library/` subtree
+  consumer's own instance; `.mcp.json` reads the token from the shell. `/setup-coolify-devops` fills the skeletons. The GitHub repo is the `library/` subtree
   of the author's deployment repo, published by `npm run publish-library`.
 - **Everything else stays in the deployment repo**: `instance.yaml`, `stacks/`, the
   two state docs. The author's deployment repo's `.claude/skills/<name>` are symlinks into
@@ -167,7 +167,7 @@ Checklist for the migration itself, beyond moving files:
    software — swapping registrars invalidates whole sections, not just bindings.
 5. **The scaffold must guarantee the instance-state write targets** that portable
    skills write into — tailnet-access's "Where we are today", infrastructure's
-   inventory and volumes tables — exist under those exact names (`/setup` step 6
+   inventory and volumes tables — exist under those exact names (`/setup-coolify-devops` step 6
    does this; keep it true).
 
 ## 2026-09-08, second pass: the setup starts before Coolify exists
@@ -181,10 +181,10 @@ mentioned a firewall at all. Three decisions came out of it, all landed in this 
 - **Human checklist, skill verifies.** The console work (VM, Tailscale, Coolify,
   cloud firewall) is a rendered runbook, `provisioning.md`, not a skill: a skill
   cannot click a cloud console, and a doc a human can read start to finish is the
-  honest form. What a skill *can* do is verify it — `/setup` and `/health` probe the
+  honest form. What a skill *can* do is verify it — `/setup-coolify-devops` and `/health` probe the
   public IP from the operator's machine, which is on the internet, so a port that
   answers is the finding. The split is "human does, skill checks", the same
-  prepared-step discipline `/setup` already used for the tailnet preconditions.
+  prepared-step discipline `/setup-coolify-devops` already used for the tailnet preconditions.
 - **The lanes are fixed and the firewall enforces them.** Internal tools are always
   Tailscale Services; the public lane needs a domain (owned, or a free DuckDNS one)
   and exists only for public-facing apps. Docker-published ports bypass `ufw`, so the
@@ -203,7 +203,7 @@ rejected: MagicDNS gives one name per machine, so every tool becomes a path, whi
 breaks apps that assume `/` and — decisive — collapses per-Service tailnet grants into
 one grant for everything. One name per tool stays.
 
-**Next**: a fresh-context trial of the scaffold plus `/setup` against a real, newly
+**Next**: a fresh-context trial of the scaffold plus `/setup-coolify-devops` against a real, newly
 provisioned machine, by someone other than the author, friction log as the
 deliverable (`conventions.md`, *Trialing a skill*). Items marked *unverified* in
 `provisioning.md` — the `github` dashboard mode in particular, including the one-time
@@ -221,7 +221,7 @@ GitHub App creation through the allow-listed port — are what that trial settle
 
 ## The setup skill
 
-`/setup` is `conventions.md`'s "Pivoting to another instance" procedure turned into
+`/setup-coolify-devops` is `conventions.md`'s "Pivoting to another instance" procedure turned into
 a skill, plus an interview. It:
 
 1. Interviews for the bindings — tailnet suffix, public domain, project names,
@@ -253,5 +253,5 @@ as part of the migration, not as a discovery afterwards.
 The first real second consumer — the moment the library is actually handed to
 someone, or a genuine second instance appears. **Fired 2026-09-08** (see the status at
 the top). The physical split and the scaffolder are the v1 answer; the plugin form is
-the next step, gated on the first scaffolded instance actually running `/setup` and
+the next step, gated on the first scaffolded instance actually running `/setup-coolify-devops` and
 reporting friction.

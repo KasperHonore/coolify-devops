@@ -1,8 +1,8 @@
 # Provisioning the server: from an empty cloud account to a Coolify host on the tailnet
 
-This is the checklist for everything that happens *before* `/setup` can run. All of it
+This is the checklist for everything that happens *before* `/setup-coolify-devops` can run. All of it
 is console and terminal work a human does; no skill can click a cloud console for you.
-What the skills do is verify it — `/setup` step 2 and `/health` probe your server's
+What the skills do is verify it — `/setup-coolify-devops` step 2 and `/health` probe your server's
 public IP from the outside and compare the answer to `instance.yaml`. Work top to
 bottom; each section ends with a *Done when* list that is the real test.
 
@@ -255,7 +255,7 @@ bypass as `ufw`, and `chaifeng/ufw-docker` on the host is the fallback.
    proxy status **DNS only** (grey cloud). Traefik needs to see the client and to answer
    the Let's Encrypt challenge itself.
 2. An **API token** scoped to *Zone → DNS → Edit* on that zone only. It goes into the
-   `{{PUBLIC_DNS}}` service's env store during `/setup`, never into a file. That service
+   `{{PUBLIC_DNS}}` service's env store during `/setup-coolify-devops`, never into a file. That service
    keeps the record pinned to the server's current IP, every 5 minutes, so the record
    you created by hand is the last one anyone creates by hand.
 {{/DNS_CLOUDFLARE}}{{#DNS_DUCKDNS}}At duckdns.org, signed in:
@@ -265,7 +265,7 @@ bypass as `ufw`, and `chaifeng/ufw-docker` on the host is the fallback.
    `a.b.{{PUBLIC_SUFFIX}}`) to that same address — that implicit wildcard is the whole
    reason it works here with a single record and nothing else to create.
 2. Copy the account **token** from the top of the page. It goes into the
-   `{{PUBLIC_DNS}}` service's env store during `/setup` (the `linuxserver/duckdns`
+   `{{PUBLIC_DNS}}` service's env store during `/setup-coolify-devops` (the `linuxserver/duckdns`
    updater, env `SUBDOMAINS` and `TOKEN`), never into a file. That service re-pins the
    record every 5 minutes.
 
@@ -327,7 +327,7 @@ edited on GitHub by hand.
 {{/UI_TAILNET}}
 ---
 
-## 7. Verify from the outside, then hand over to `/setup`
+## 7. Verify from the outside, then hand over to `/setup-coolify-devops`
 
 From any machine on the internet **that is not on the tailnet and is not the server
 itself** — your laptop with Tailscale switched off is the usual choice — probe the
@@ -352,8 +352,8 @@ Expected for this instance:
 
 Then from a machine **on** the tailnet: `curl -sI http://<tailnet-ip>:8000` answers.
 
-**Done when** both match. `/setup` asks for the outside probe before it trusts the
+**Done when** both match. `/setup-coolify-devops` asks for the outside probe before it trusts the
 instance{{^ON_HOST}} (and runs it itself when Claude Code is off the tailnet){{/ON_HOST}}, and records the result in
 `docs/infrastructure.md`; `/health` asks again on every sweep. From here: export
 `COOLIFY_BASE_URL={{#COOLIFY_URL}}{{COOLIFY_URL}}{{/COOLIFY_URL}}{{^COOLIFY_URL}}{{#ON_HOST}}http://localhost:8000{{/ON_HOST}}{{^ON_HOST}}http://<tailnet-ip>:8000{{/ON_HOST}}{{/COOLIFY_URL}}` and the
-token, start Claude Code in the deployment repo, and run `/setup`.
+token, start Claude Code in the deployment repo, and run `/setup-coolify-devops`.

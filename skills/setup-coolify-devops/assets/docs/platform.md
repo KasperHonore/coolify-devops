@@ -92,7 +92,7 @@ in `instance.yaml`:
 | TCP 22 | never — SSH goes over the tailnet (Tailscale SSH, or the tailnet IP) |
 
 Everything else is closed, including 8000 in `tailnet` mode and every port a resource
-might accidentally publish. `/setup` and `/health` have the public IP probed from a
+might accidentally publish. `/setup-coolify-devops` and `/health` have the public IP probed from a
 machine off the tailnet and not the host — a connection *succeeding* is the finding —
 and `/health` also scans internal-lane composes for `ports:`. The probe cannot come
 from the host itself: traffic to its own public IP never crosses the cloud firewall. Three layers: the convention

@@ -4,9 +4,9 @@
   "private": true,
   "description": "Claude Code skills for operating a Coolify server through the Coolify MCP, with a tailnet-first hosting model. Install with `npx skills add KasperHonore/coolify-devops`.",
   "scripts": {
-    "render": "cd .. && node library/skills/setup/scripts/scaffold.js --render",
+    "render": "cd .. && node library/skills/setup-coolify-devops/scripts/scaffold.js --render",
     "publish-library": "sh bin/publish-library.sh",
-    "test": "node skills/setup/scripts/scaffold.js --no-git --internal-suffix=example-tailnet.ts.net /tmp/coolify-devops-smoke && node skills/setup/scripts/scaffold.js --no-git --public-suffix=team.duckdns.org --coolify-ui=internet /tmp/coolify-devops-smoke2 && ! grep -rl '{{' /tmp/coolify-devops-smoke /tmp/coolify-devops-smoke2 && rm -rf /tmp/coolify-devops-smoke /tmp/coolify-devops-smoke2"
+    "test": "node skills/setup-coolify-devops/scripts/scaffold.js --no-git --internal-suffix=example-tailnet.ts.net /tmp/coolify-devops-smoke && node skills/setup-coolify-devops/scripts/scaffold.js --no-git --public-suffix=team.duckdns.org --coolify-ui=internet /tmp/coolify-devops-smoke2 && ! grep -rl '{{' /tmp/coolify-devops-smoke /tmp/coolify-devops-smoke2 && rm -rf /tmp/coolify-devops-smoke /tmp/coolify-devops-smoke2"
   },
   "engines": {
     "node": ">=18"

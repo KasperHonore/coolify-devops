@@ -1,13 +1,13 @@
 # Coolify deployment repo
 
-Scaffolded by the `/setup` skill of [coolify-devops](https://github.com/KasperHonore/coolify-devops)
+Scaffolded by the `/setup-coolify-devops` skill of [coolify-devops](https://github.com/KasperHonore/coolify-devops)
 (installed with `npx skills add KasperHonore/coolify-devops`). This repo is the operating
 manual and state record for one Coolify instance, driven from Claude Code through the
 Coolify MCP.
 
 - `CLAUDE.md` — the rules every session follows. Start here.
 - `instance.yaml` — the bindings for this instance (tailnet, domains, project names).
-- `.claude/skills/` — `/setup`, `/host`, `/change-service`, `/health`, `/grant-access`.
+- `.claude/skills/` — `/setup-coolify-devops`, `/host`, `/change-service`, `/health`, `/grant-access`.
 - `docs/` — platform runbooks and this instance's recorded state. `docs/provisioning.md`
   is the human checklist for the server itself: VM, Tailscale, Coolify, firewall.
 - `stacks/` — reference copies of what is deployed. Coolify is the write path.
@@ -28,13 +28,13 @@ EOF
 
 Then a new shell and `claude` from this directory. On the first
 run Claude Code asks you to approve the project MCP server. Then `/health` to look,
-`/host <thing>` to deploy, `/setup` if the instance is not bootstrapped yet.
+`/host <thing>` to deploy, `/setup-coolify-devops` if the instance is not bootstrapped yet.
 
 ## Updating the skills
 
 ```bash
 npx skills update                                        # pulls the latest skills
-node .claude/skills/setup/scripts/scaffold.js --render   # re-renders CLAUDE.md and docs/ runbooks
+node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render   # re-renders CLAUDE.md and docs/ runbooks
 ```
 
 `CLAUDE.md` and the runbooks in `docs/` are rendered from templates inside the setup

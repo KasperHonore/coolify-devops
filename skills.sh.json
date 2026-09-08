@@ -4,7 +4,7 @@
     {
       "title": "Start here",
       "description": "Run once per Coolify instance. Creates the deployment repo the other skills operate.",
-      "skills": ["setup"]
+      "skills": ["setup-coolify-devops"]
     },
     {
       "title": "Operate",

@@ -11,7 +11,7 @@
 coolify:
   mcp_server: {{MCP_SERVER}}            # the MCP server name this repo is operated through
   url: {{COOLIFY_URL}}             # [pivot] the Coolify UI/API base URL — not a secret; the token never lives here
-  version_observed: ""           # [pivot] last confirmed Coolify version; /setup records it
+  version_observed: ""           # [pivot] last confirmed Coolify version; /setup-coolify-devops records it
 
 host:
   provider: {{HOST_PROVIDER}}             # [pivot] hetzner | other — whose cloud firewall docs/provisioning.md addresses
@@ -37,7 +37,7 @@ exposure:
                                          # tailnet (team only) | github (tailnet + GitHub's webhook
                                          # ranges, for push-to-deploy) | internet (anyone; 2FA on).
                                          # Decides the firewall rules in docs/provisioning.md and what
-                                         # /setup and /health expect the outside probe to show.
+                                         # /setup-coolify-devops and /health expect the outside probe to show.
 
 projects:
   internal: {{PROJECT_INTERNAL}}       # tailnet-only resources

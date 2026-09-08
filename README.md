@@ -18,7 +18,7 @@ npx skills add KasperHonore/coolify-devops -a claude-code -y
 claude
 ```
 
-Then run `/setup`. It interviews you — where Claude Code runs (on the host, it reads the
+Then run `/setup-coolify-devops`. It interviews you — where Claude Code runs (on the host, it reads the
 tailnet domain and IPs itself), where the server runs, whether you will host
 public-facing apps (and if so the domain: your own or a free DuckDNS one), who may
 reach the Coolify dashboard — and scaffolds the deployment repo around the
@@ -31,7 +31,7 @@ service, and accepts with `/health`.
 
 | Skill | What it does |
 |---|---|
-| `/setup` | Bootstrap an instance: interview → deployment repo → preconditions → projects → plumbing → canary → `/health` |
+| `/setup-coolify-devops` | Bootstrap an instance: interview → deployment repo → preconditions → projects → plumbing → canary → `/health` |
 | `/host` | Host something new, end to end: lane, name, research, compose, deploy, the four tailnet verification steps, bookkeeping |
 | `/change-service` | Change a deployed resource safely — compose, env, and `content:` file mounts, where the obvious path changes nothing |
 | `/health` | Read-only sweep: status, reachability, the outside firewall probe, published-port scan, drift against `stacks/` |
@@ -39,7 +39,7 @@ service, and accepts with `/health`.
 
 ## How it fits together
 
-The skills operate a **deployment repo**, which `/setup` creates in the directory you
+The skills operate a **deployment repo**, which `/setup-coolify-devops` creates in the directory you
 installed them into. Everything the skills read at run time lives there:
 
 | Path | What it is |
@@ -51,13 +51,13 @@ installed them into. Everything the skills read at run time lives there:
 | `.mcp.json` | `npx @masonator/coolify-mcp@latest` with `${COOLIFY_BASE_URL}` / `${COOLIFY_ACCESS_TOKEN}` from your shell |
 
 The rendered files come from templates bundled *inside* the setup skill
-(`skills/setup/assets/`, rendered by `skills/setup/scripts/scaffold.js`). That is
+(`skills/setup-coolify-devops/assets/`, rendered by `skills/setup-coolify-devops/scripts/scaffold.js`). That is
 deliberate: the skills CLI installs only skill directories, so the runbooks travel with
 the skill and update with it:
 
 ```bash
 npx skills update                                        # new skills, new templates
-node .claude/skills/setup/scripts/scaffold.js --render   # re-render CLAUDE.md and docs/ runbooks
+node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render   # re-render CLAUDE.md and docs/ runbooks
 ```
 
 The state files and `stacks/` are yours and are never touched by a render.
@@ -82,9 +82,9 @@ reference `instance.yaml` and `docs/` and are useless.
 
 This repo is the `library/` subtree of the author's own deployment repo, which consumes
 it exactly as a consumer does: `CLAUDE.md` and `docs/` there are rendered from
-`skills/setup/assets/` by `npm run render`, so what every consumer receives and what the
+`skills/setup-coolify-devops/assets/` by `npm run render`, so what every consumer receives and what the
 author runs on cannot drift. `npm test` scaffolds two sample repos into a temp dir and
 fails on any unrendered template tag. Design notes and the record of decisions:
-`skills/setup/assets/docs/skill-library.md`.
+`skills/setup-coolify-devops/assets/docs/skill-library.md`.
 
 License: MIT.

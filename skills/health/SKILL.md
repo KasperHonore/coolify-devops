@@ -43,7 +43,7 @@ territory and a separate decision.
 Two checks, both read-only, both cheap; skip neither.
 
 - **Probe the public IP from outside.** `get_server` for the address, then the loop in
-  `/setup` step 2 (`</dev/tcp/<ip>/<port>` with a 3 s timeout) over 22, 80, 443,
+  `/setup-coolify-devops` step 2 (`</dev/tcp/<ip>/<port>` with a 3 s timeout) over 22, 80, 443,
   3000, 8000, 6001, 6002 — run here only if this machine is neither the host nor on
   the tailnet (`operator.on_host` false and `domains.operator_tailnet` empty in
   `instance.yaml`); otherwise the loop is a prepared step for a human on a machine

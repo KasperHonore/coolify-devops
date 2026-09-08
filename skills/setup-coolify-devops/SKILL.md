@@ -1,5 +1,5 @@
 ---
-name: setup
+name: setup-coolify-devops
 description: Bootstrap a Coolify instance end to end, or pivot this repo to a different one — interview for the bindings, write instance.yaml, verify the MCP, create the projects, deploy the plumbing and the canary, scaffold the deployment repo, and accept with /health. Use when the user says "set up a new instance", "bootstrap this server", "pivot to another Coolify", or hands over a fresh Coolify server to make ready for hosting.
 ---
 
@@ -69,7 +69,7 @@ done because it was asked for:
    then a new shell, `claude` from the repo, approve the project server when prompted —
    and `/mcp` showing it connected is the verification. "Never in a file" means never
    in a file *in the repo*; a 600-mode file in the user's home is the right place.
-   The session will not survive the restart, so say plainly that the next `/setup`
+   The session will not survive the restart, so say plainly that the next `/setup-coolify-devops`
    resumes at step 2. In bootstrap mode this means the order is: interview and scaffold
    (step 1) first, *then* this precondition, *then* step 2 onwards in a new session. An unset
    variable does not fail loudly: Claude Code loads the server with the literal

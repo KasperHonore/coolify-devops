@@ -3,7 +3,7 @@
 The state record for this Coolify instance: platform versions, inventory, credentials
 in play (by name), volumes, housekeeping, and known gaps. How hosting *works* — lanes,
 naming, the deployment model, working through the MCP — is the portable
-`docs/platform.md`; this file is what `/host`, `/health` and `/setup` write into.
+`docs/platform.md`; this file is what `/host`, `/health` and `/setup-coolify-devops` write into.
 
 ---
 
@@ -11,15 +11,15 @@ naming, the deployment model, working through the MCP — is the portable
 
 | | |
 |---|---|
-| Coolify | {{#COOLIFY_URL}}`{{COOLIFY_URL}}`, version {{/COOLIFY_URL}}_(`get_version` — `/setup` records it)_ |
+| Coolify | {{#COOLIFY_URL}}`{{COOLIFY_URL}}`, version {{/COOLIFY_URL}}_(`get_version` — `/setup-coolify-devops` records it)_ |
 | MCP server | `@masonator/coolify-mcp` _(`get_mcp_version`)_ — runs on the operator's machine as a stdio process via `.mcp.json`; a new release is picked up on the next session start |
 | Servers | _(`list_servers`)_ |
 | Destinations | _(`list_destinations` — more than one means every create needs `destination_uuid`)_ |
 | Proxy | Traefik |
 | Wildcard domain | {{#HAS_PUBLIC}}`https://{{PUBLIC_SUFFIX}}` ({{DNS_PROVIDER}}){{/HAS_PUBLIC}}{{^HAS_PUBLIC}}_(no public lane)_{{/HAS_PUBLIC}} |
 | Tailnet | `{{INTERNAL_SUFFIX}}` |
-| Host / firewall | {{HOST_PROVIDER}} — _(firewall name as shown in the console; `/setup` records it)_ |
-| Dashboard exposure | `{{UI_EXPOSURE}}` — _(outside probe result and date, from `/setup` step 2)_ |
+| Host / firewall | {{HOST_PROVIDER}} — _(firewall name as shown in the console; `/setup-coolify-devops` records it)_ |
+| Dashboard exposure | `{{UI_EXPOSURE}}` — _(outside probe result and date, from `/setup-coolify-devops` step 2)_ |
 
 Single-node. Currently public: _(none)_. The canary is `https://{{CANARY}}.{{INTERNAL_SUFFIX}}/`.
 

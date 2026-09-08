@@ -2,7 +2,7 @@
 'use strict';
 
 // Scaffold a Claude Code deployment repo for operating a Coolify server through the
-// Coolify MCP, or re-render one from its instance.yaml. Bundled with the /setup skill
+// Coolify MCP, or re-render one from its instance.yaml. Bundled with the /setup-coolify-devops skill
 // and run by it — the skill asks the interview questions, then passes the answers as
 // flags. Zero dependencies on purpose: it runs on a machine that has nothing but node.
 //
@@ -167,7 +167,7 @@ function has(cmd) {
 
 // The runbooks in assets/docs/ are templates: rendered with the instance's bindings so
 // a deployment repo reads as its own, never as the library author's.
-const RUNBOOK_BANNER = '<!-- Rendered from library/skills/setup/assets/docs/%s by `npm run render`. Edit the source, not this file. -->\n\n';
+const RUNBOOK_BANNER = '<!-- Rendered from library/skills/setup-coolify-devops/assets/docs/%s by `npm run render`. Edit the source, not this file. -->\n\n';
 function renderRunbooks(targetDocs, vars) {
   fs.mkdirSync(targetDocs, { recursive: true });
   for (const f of fs.readdirSync(path.join(TEMPLATE_DIR, 'docs'))) {
@@ -210,8 +210,8 @@ async function main() {
     process.exit(1);
   }
 
-  // Bindings come in as flags; /setup asked the questions. Anything not given stays
-  // blank ("" in instance.yaml) for /setup to fill after the MCP answers.
+  // Bindings come in as flags; /setup-coolify-devops asked the questions. Anything not given stays
+  // blank ("" in instance.yaml) for /setup-coolify-devops to fill after the MCP answers.
   const onHost = Boolean(args.onHost);
   let internal = args.internalSuffix, pub = args.publicSuffix, same = onHost || Boolean(args.sameTailnet);
   let canary = args.canary || 'whoami', branch = args.branch || 'main';
@@ -282,7 +282,7 @@ async function main() {
   console.log(`
 Scaffolded ${rel}/
   CLAUDE.md          operating rules for every Claude Code session
-  instance.yaml      your bindings${internal ? '' : ' (blank — /setup fills them)'}
+  instance.yaml      your bindings${internal ? '' : ' (blank — /setup-coolify-devops fills them)'}
   .mcp.json          Coolify MCP wiring; reads COOLIFY_BASE_URL and COOLIFY_ACCESS_TOKEN from your shell
   docs/              runbooks and state files, rendered for your instance
   stacks/README.md   what reference copies are; the change lore is docs/changing-a-resource.md

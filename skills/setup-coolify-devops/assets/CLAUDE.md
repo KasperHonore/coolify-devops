@@ -1,4 +1,4 @@
-{{#IS_LIBRARY}}<!-- Rendered from library/skills/setup/assets/CLAUDE.md + instance.yaml by `npm run render`. Edit the template, not this file. -->
+{{#IS_LIBRARY}}<!-- Rendered from library/skills/setup-coolify-devops/assets/CLAUDE.md + instance.yaml by `npm run render`. Edit the template, not this file. -->
 
 {{/IS_LIBRARY}}# Coolify hosting
 
@@ -35,7 +35,7 @@ step: key expiry, the tailnet's name, the policy file, OAuth clients
 **The outside firewall probe cannot be run from here.** Traffic from the host to its
 own public IP never crosses the cloud firewall, so every port would look open. That
 probe is a prepared step for a human on a machine off the tailnet (`docs/provisioning.md`,
-section 7); `/setup` and `/health` hand it over and record the answer.
+section 7); `/setup-coolify-devops` and `/health` hand it over and record the answer.
 {{/ON_HOST}}{{^ON_HOST}}
 This repo operates Coolify **through the Coolify MCP only**. No SSH, no `docker` CLI,
 no reading or writing files on the server. Anything about live state — compose, env,
@@ -94,7 +94,7 @@ callback genuinely requires it — a tool receiving third-party webhooks is the 
 cloud firewall in front of the host is the guarantee — Docker's own port publishing walks
 straight past `ufw`, so a stray `ports:` line on an internal tool would put it on the
 public IP if the cloud firewall were not there. The rules, which follow from the lane
-answer and `exposure.coolify_ui`, are in `docs/provisioning.md`; `/setup` and `/health`
+answer and `exposure.coolify_ui`, are in `docs/provisioning.md`; `/setup-coolify-devops` and `/health`
 probe the public IP from outside to prove they hold. The Coolify dashboard itself
 (port 8000) is reachable by: **{{UI_EXPOSURE}}**{{#UI_GITHUB}} — the tailnet plus
 GitHub's webhook ranges, so push-to-deploy works without the dashboard being on the open
@@ -149,11 +149,11 @@ between live state and the `stacks/` copies. Start ops sessions here; it never m
 - **`/grant-access`** — the people side of the tailnet: onboard or offboard someone,
 grant a group specific tools, scope a service to a narrower audience. Policy and
 membership only — publishing a service is `/host`, its labels are `/change-service`.
-- **`/setup`** — bootstrap a fresh Coolify instance or pivot this repo to a
+- **`/setup-coolify-devops`** — bootstrap a fresh Coolify instance or pivot this repo to a
 different one: interview → `instance.yaml`, projects, plumbing, canary, repo
 scaffold, `/health` as acceptance. The endgame it serves is `docs/skill-library.md`.
 What comes *before* it — the VM, Tailscale, the Coolify install, the firewall — is a
-human checklist, `docs/provisioning.md`, that `/setup` hands over and then verifies.
+human checklist, `docs/provisioning.md`, that `/setup-coolify-devops` hands over and then verifies.
 
 The docs stay authoritative; the skills follow them. When a skill and a doc disagree,
 the doc wins — then fix the skill.
@@ -200,7 +200,7 @@ fast-forward `{{COMMIT_BRANCH}}` onto it and delete the branch.{{#IS_LIBRARY}}
 `instance.yaml`) and has no push remote on purpose. The only thing that leaves it is
 `library/`, published to GitHub by `npm run publish-library` from inside `library/`,
 where consumers install it with `npx skills add`. `.claude/skills/*` are symlinks into
-`library/skills/`; the runbook templates live in `library/skills/setup/assets/`, and
+`library/skills/`; the runbook templates live in `library/skills/setup-coolify-devops/assets/`, and
 this file plus the runbooks in `docs/` are rendered from them by `npm run render` —
 edit the source, then render. Nothing instance-specific ever goes under `library/` —
 the rules are in `docs/conventions.md`.{{/IS_LIBRARY}}{{^IS_LIBRARY}} If the repo has
@@ -208,7 +208,7 @@ a remote, push after every commit.
 - **`CLAUDE.md` and the runbooks in `docs/` are rendered outputs.** They come from the
 templates bundled in the setup skill, rendered from `instance.yaml`. Do not hand-edit
 them; change `instance.yaml` (or update the skills with `npx skills update`) and run
-`node .claude/skills/setup/scripts/scaffold.js --render`. The two state files,
+`node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render`. The two state files,
 `docs/infrastructure.md` and `docs/tailnet-state.md`, are hand-maintained and never
 re-rendered.{{/IS_LIBRARY}}
 - Guardrails and the checklist for adding a resource are in `docs/platform.md`; the
