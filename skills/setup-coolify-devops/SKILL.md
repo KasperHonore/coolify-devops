@@ -161,7 +161,7 @@ Then, in bootstrap mode, **run the bundled scaffolder with the answers as flags*
 it writes `instance.yaml` and renders everything else from it:
 
 ```bash
-node "${CLAUDE_SKILL_DIR}/scripts/scaffold.js" . \
+node "${CLAUDE_SKILL_DIR}/scripts/scaffold.js" \
   --coolify-url=<url> --internal-suffix=<tailnet> \
   --public-suffix=<domain-or-omit> --no-public \
   --dns-provider=cloudflare|duckdns --coolify-ui=tailnet|github|internet \
@@ -169,6 +169,11 @@ node "${CLAUDE_SKILL_DIR}/scripts/scaffold.js" . \
 ```
 
 (`--help` lists every flag; omit what was not answered and it stays `""` for later.)
+**No target directory.** The script scaffolds *in place*, in the directory the skills
+are installed in — it finds that from its own path — so the repo, the skills and the
+session's working directory are the same folder and nobody has to `cd` anywhere.
+Passing a directory name creates a nested repo *without* the skills in it, which is
+exactly what happened once; the script now refuses that.
 Relay its closing "human steps still ahead" block to the user verbatim — it is the
 prepared-step handover for preconditions 0, 1 and 3. Never hand-edit `CLAUDE.md` or
 the runbooks in `docs/`: they are rendered outputs, and

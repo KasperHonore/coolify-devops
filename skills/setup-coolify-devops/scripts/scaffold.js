@@ -6,7 +6,12 @@
 // and run by it — the skill asks the interview questions, then passes the answers as
 // flags. Zero dependencies on purpose: it runs on a machine that has nothing but node.
 //
-//   node ${CLAUDE_SKILL_DIR}/scripts/scaffold.js [target-dir] [options]
+//   node ${CLAUDE_SKILL_DIR}/scripts/scaffold.js [options]
+//
+// It scaffolds the deployment repo IN PLACE: the directory the skills are installed
+// in (found from this script's own location under .claude/skills or .agents/skills),
+// falling back to the current directory. It never creates a nested folder — the
+// skills must end up inside the repo they operate, and nobody should have to cd.
 //
 // Options:
 //   --yes                   accept defaults for anything not given as a flag (non-interactive; always on)
@@ -155,6 +160,19 @@ function checkChoice(name, value, choices) {
   }
 }
 
+// Where is the deployment repo? This script lives at <repo>/.claude/skills/<name>/scripts
+// (or <repo>/.agents/skills/<name>/scripts in the skills CLI's symlink mode). Walk up
+// past the skills container; null when the script is run from somewhere else (the
+// library checkout, a test).
+function repoRootFromSkillDir() {
+  const real = fs.realpathSync(SKILL_ROOT);          // resolve the symlink-mode link
+  for (const candidate of [real, SKILL_ROOT]) {
+    const m = candidate.match(/^(.*)\/(?:\.claude|\.agents)\/skills\/[^/]+$/);
+    if (m) return m[1];
+  }
+  return null;
+}
+
 function run(cmd, args, cwd) {
   const r = spawnSync(cmd, args, { cwd, stdio: 'pipe', encoding: 'utf8' });
   return r.status === 0;
@@ -201,7 +219,11 @@ async function main() {
   }
   if (args.render) return renderMode();
 
-  const target = path.resolve(process.cwd(), args._[0] || 'coolify-devops');
+  const target = path.resolve(process.cwd(), args._[0] || repoRootFromSkillDir() || '.');
+  if (args._[0] && repoRootFromSkillDir() && target !== repoRootFromSkillDir()) {
+    console.error(`Refusing: the skills are installed in ${repoRootFromSkillDir()}, so that is the deployment repo. Run without a target to scaffold there.`);
+    process.exit(1);
+  }
   // An empty dir, or one holding nothing but the skills install (.claude/, .agents/,
   // skills-lock.json, .git) — that is what a fresh `npx skills add` leaves behind.
   const harmless = new Set(['.claude', '.agents', 'skills-lock.json', '.git', '.gitignore', '.DS_Store']);
