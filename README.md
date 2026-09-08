@@ -63,6 +63,11 @@ npx skills update                                        # new skills, new templ
 node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render   # re-render CLAUDE.md and docs/ runbooks
 ```
 
+`update` refreshes the skills already installed; a skill that was *renamed* upstream
+shows as "deleted upstream" and its new name is not picked up. Run
+`npx skills add KasperHonore/coolify-devops -a claude-code -y` again to get it, and
+`npx skills remove <old-name> -y` for the stale copy.
+
 The state files and `stacks/` are yours and are never touched by a render.
 
 Install the skills **inside the deployment repo, not globally**: on their own they
