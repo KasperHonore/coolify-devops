@@ -2,13 +2,14 @@
 'use strict';
 
 // Scaffold a Claude Code deployment repo for operating a Coolify server through the
-// Coolify MCP. Zero dependencies on purpose: this runs via `npx` on a machine that
-// has nothing installed yet.
+// Coolify MCP, or re-render one from its instance.yaml. Bundled with the /setup skill
+// and run by it — the skill asks the interview questions, then passes the answers as
+// flags. Zero dependencies on purpose: it runs on a machine that has nothing but node.
 //
-//   npx coolify-devops [target-dir] [options]
+//   node ${CLAUDE_SKILL_DIR}/scripts/scaffold.js [target-dir] [options]
 //
 // Options:
-//   --yes                   accept defaults, leave unknown bindings as placeholders
+//   --yes                   accept defaults for anything not given as a flag (non-interactive; always on)
 //   --coolify-url=X         https://coolify.example.com (not secret; the token stays in your shell)
 //   --internal-suffix=X     tailnet domain, e.g. example-name.ts.net
 //   --public-suffix=X       public wildcard domain, e.g. apps.example.com ("" = no public lane)
@@ -22,15 +23,20 @@
 //   --backups=X             recommend-but-no | required (default recommend-but-no)
 //   --branch=X              commit branch (default main)
 //   --no-git                skip git init + initial commit
-//   --render                (maintainers) re-render ./CLAUDE.md and ./docs/<runbooks> from library/ + ./instance.yaml
+//   --render                re-render ./CLAUDE.md and the runbooks in ./docs/ from ./instance.yaml
+//                           (after `npx skills update`, or after editing instance.yaml); never
+//                           touches the state files docs/infrastructure.md and docs/tailnet-state.md
 //   --help
 
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const PKG_ROOT = path.resolve(__dirname, '..');
-const TEMPLATE_DIR = path.join(PKG_ROOT, 'template');
+const SKILL_ROOT = path.resolve(__dirname, '..');
+const TEMPLATE_DIR = path.join(SKILL_ROOT, 'assets');
+// Everything in assets/docs/ is a runbook template except these two, which are
+// instance-state skeletons: written once at scaffold time, never re-rendered.
+const STATE_SKELETONS = new Set(['infrastructure.md', 'tailnet-state.md']);
 
 // ---------- tiny helpers (no deps) ----------
 
@@ -138,24 +144,6 @@ function varsFromInstance(inst) {
   };
 }
 
-async function ask(rl, question, def) {
-  const suffix = def ? ` [${def}]` : '';
-  const a = (await rl.question(`${question}${suffix}: `)).trim();
-  return a === '' ? (def || '') : a;
-}
-async function askYesNo(rl, question, def) {
-  const a = (await rl.question(`${question} ${def ? '[Y/n]' : '[y/N]'}: `)).trim().toLowerCase();
-  if (a === '') return def;
-  return a === 'y' || a === 'yes';
-}
-async function askChoice(rl, question, choices, def) {
-  for (;;) {
-    const a = (await rl.question(`${question} (${choices.join(' | ')}) [${def}]: `)).trim().toLowerCase();
-    if (a === '') return def;
-    if (choices.includes(a)) return a;
-    console.log(`  one of: ${choices.join(', ')}`);
-  }
-}
 function checkChoice(name, value, choices) {
   if (value !== undefined && !choices.includes(value)) {
     console.error(`--${name} must be one of: ${choices.join(', ')}`);
@@ -173,14 +161,14 @@ function has(cmd) {
   return !r.error && r.status === 0;
 }
 
-// The runbooks in docs/ are templates: rendered with the instance's bindings so a
-// deployment repo reads as its own, never as the library author's.
-const RUNBOOK_BANNER = '<!-- Rendered from library/docs/%s by `npm run render`. Edit the source, not this file. -->\n\n';
+// The runbooks in assets/docs/ are templates: rendered with the instance's bindings so
+// a deployment repo reads as its own, never as the library author's.
+const RUNBOOK_BANNER = '<!-- Rendered from library/skills/setup/assets/docs/%s by `npm run render`. Edit the source, not this file. -->\n\n';
 function renderRunbooks(targetDocs, vars) {
   fs.mkdirSync(targetDocs, { recursive: true });
-  for (const f of fs.readdirSync(path.join(PKG_ROOT, 'docs'))) {
-    if (!f.endsWith('.md')) continue;
-    const body = render(fs.readFileSync(path.join(PKG_ROOT, 'docs', f), 'utf8'), vars);
+  for (const f of fs.readdirSync(path.join(TEMPLATE_DIR, 'docs'))) {
+    if (!f.endsWith('.md') || STATE_SKELETONS.has(f)) continue;
+    const body = render(fs.readFileSync(path.join(TEMPLATE_DIR, 'docs', f), 'utf8'), vars);
     fs.writeFileSync(path.join(targetDocs, f), (vars.IS_LIBRARY ? RUNBOOK_BANNER.replace('%s', f) : '') + body);
   }
 }
@@ -191,10 +179,12 @@ function renderMode() {
   const cwd = process.cwd();
   const inst = readInstanceYaml(path.join(cwd, 'instance.yaml'));
   const tpl = fs.readFileSync(path.join(TEMPLATE_DIR, 'CLAUDE.md'), 'utf8');
-  const vars = { ...varsFromInstance(inst), HAS_MCP_JSON: fs.existsSync(path.join(cwd, '.mcp.json')), IS_LIBRARY: true };
+  // IS_LIBRARY: the library author's own deployment repo, which carries library/ and
+  // gets the "rendered from" banners; a consumer's repo does not.
+  const vars = { ...varsFromInstance(inst), HAS_MCP_JSON: fs.existsSync(path.join(cwd, '.mcp.json')), IS_LIBRARY: fs.existsSync(path.join(cwd, 'library', 'skills')) };
   fs.writeFileSync(path.join(cwd, 'CLAUDE.md'), render(tpl, vars));
   renderRunbooks(path.join(cwd, 'docs'), vars);
-  console.log('Rendered CLAUDE.md and docs/ runbooks from library/ + instance.yaml');
+  console.log(`Rendered CLAUDE.md and the runbooks in docs/ from instance.yaml${vars.IS_LIBRARY ? ' (library author mode)' : ''}`);
 }
 
 // ---------- scaffold ----------
@@ -208,13 +198,16 @@ async function main() {
   if (args.render) return renderMode();
 
   const target = path.resolve(process.cwd(), args._[0] || 'coolify-devops');
-  if (fs.existsSync(target) && fs.readdirSync(target).length > 0) {
-    console.error(`Refusing to scaffold into a non-empty directory: ${target}`);
+  // An empty dir, or one holding nothing but the skills install (.claude/, .agents/,
+  // skills-lock.json, .git) — that is what a fresh `npx skills add` leaves behind.
+  const harmless = new Set(['.claude', '.agents', 'skills-lock.json', '.git', '.gitignore', '.DS_Store']);
+  if (fs.existsSync(target) && fs.readdirSync(target).some(f => !harmless.has(f))) {
+    console.error(`Refusing to scaffold into a directory that already has content: ${target}`);
     process.exit(1);
   }
 
-  // Interview — only the bindings that a shell can know. /setup does the rest
-  // (it verifies the MCP, creates projects, deploys plumbing and canary).
+  // Bindings come in as flags; /setup asked the questions. Anything not given stays
+  // blank ("" in instance.yaml) for /setup to fill after the MCP answers.
   let internal = args.internalSuffix, pub = args.publicSuffix, same = Boolean(args.sameTailnet);
   let canary = args.canary || 'whoami', branch = args.branch || 'main';
   let coolifyUrl = args.coolifyUrl, backups = args.backups || 'recommend-but-no';
@@ -224,34 +217,6 @@ async function main() {
   checkChoice('coolify-ui', uiExposure, UI_EXPOSURES);
   checkChoice('host-provider', hostProvider, HOST_PROVIDERS);
   if (args.noPublic) pub = '';
-  if (!args.yes && process.stdin.isTTY) {
-    const { createInterface } = require('node:readline/promises');
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
-    console.log('\nInstance bindings (Enter to accept a default; leave blank to fill in later with /setup)\n');
-    hostProvider = hostProvider ?? await askChoice(rl, 'Where does (or will) the Coolify server run?', HOST_PROVIDERS, 'hetzner');
-    coolifyUrl = coolifyUrl ?? await ask(rl, 'Coolify URL (e.g. https://coolify.example.com or http://<tailnet-ip>:8000; the token is never asked for)', '');
-    internal = internal ?? await ask(rl, 'Tailnet domain of the Coolify host (e.g. example-name.ts.net)', '');
-    // The lane decision is explicit. Internal tools are always on the tailnet; the
-    // public lane exists only when there are public-facing apps, and needs a domain.
-    if (pub === undefined) {
-      const wantsPublic = await askYesNo(rl, 'Will you host public-facing apps (reachable from the internet, not just your team)?', false);
-      pub = wantsPublic
-        ? await ask(rl, 'Public wildcard domain: one you own (e.g. apps.example.com) or a free DuckDNS one (e.g. team.duckdns.org)', '')
-        : '';
-    }
-    if (pub) dnsProvider = dnsProvider ?? await askChoice(rl, 'Who holds that domain\'s DNS?', DNS_PROVIDERS, dnsProviderFor(pub));
-    uiExposure = uiExposure ?? await askChoice(rl,
-      'Who may reach the Coolify dashboard (port 8000)? tailnet = your team only; github = tailnet + GitHub\'s webhook ranges, so push-to-deploy works; internet = anyone, protect it with 2FA',
-      UI_EXPOSURES, 'github');
-    same = args.sameTailnet ?? await askYesNo(rl, 'Is the machine you run Claude Code from on that same tailnet?', false);
-    projInternal = await ask(rl, 'Coolify project for tailnet-only resources', projInternal);
-    projPublic = await ask(rl, 'Coolify project for internet-reachable resources', projPublic);
-    projInfra = await ask(rl, 'Coolify project for platform plumbing', projInfra);
-    canary = await ask(rl, 'Canary service name (reference internal service)', canary);
-    backups = (await askYesNo(rl, 'Require a backup for every stateful resource? (No = recommend, record the decision, default no)', false)) ? 'required' : 'recommend-but-no';
-    branch = await ask(rl, 'Commit branch', branch);
-    rl.close();
-  }
   internal = internal || '';
   pub = pub || '';
   coolifyUrl = (coolifyUrl || '').replace(/\/+$/, '');
@@ -276,8 +241,8 @@ async function main() {
 
   fs.mkdirSync(target, { recursive: true });
 
-  // 1. Skills copied as-is; runbooks rendered for this instance.
-  fs.cpSync(path.join(PKG_ROOT, 'skills'), path.join(target, '.claude', 'skills'), { recursive: true });
+  // 1. Runbooks rendered for this instance. (The skills themselves are already in
+  // place: `npx skills add` put them there, which is how this script got here.)
   renderRunbooks(path.join(target, 'docs'), vars);
   fs.mkdirSync(path.join(target, 'stacks'), { recursive: true });
   fs.copyFileSync(path.join(TEMPLATE_DIR, 'stacks-README.md'), path.join(target, 'stacks', 'README.md'));
@@ -294,45 +259,36 @@ async function main() {
   write('.gitignore', fs.readFileSync(path.join(TEMPLATE_DIR, '_gitignore'), 'utf8'));
   write('README.md', render(fs.readFileSync(path.join(TEMPLATE_DIR, 'README.md'), 'utf8'), vars));
   // Instance-state skeletons: portable docs never carry state, so these start empty.
-  for (const f of fs.readdirSync(path.join(TEMPLATE_DIR, 'docs'))) {
+  for (const f of STATE_SKELETONS) {
     write(path.join('docs', f), render(fs.readFileSync(path.join(TEMPLATE_DIR, 'docs', f), 'utf8'), vars));
   }
 
   // 3. Git.
   let gitDone = false;
   if (!args.noGit && has('git')) {
-    gitDone = run('git', ['init', '-q', '-b', branch], target)
+    gitDone = (fs.existsSync(path.join(target, '.git')) || run('git', ['init', '-q', '-b', branch], target))
       && run('git', ['add', '-A'], target)
       && run('git', ['-c', 'user.name=coolify-devops', '-c', 'user.email=coolify-devops@localhost', 'commit', '-q', '-m', 'Scaffold deployment repo with coolify-devops'], target);
   }
 
   const rel = path.relative(process.cwd(), target) || '.';
   console.log(`
-Created ${rel}/
+Scaffolded ${rel}/
   CLAUDE.md          operating rules for every Claude Code session
   instance.yaml      your bindings${internal ? '' : ' (blank — /setup fills them)'}
   .mcp.json          Coolify MCP wiring; reads COOLIFY_BASE_URL and COOLIFY_ACCESS_TOKEN from your shell
-  .claude/skills/    /setup /host /change-service /health /grant-access
   docs/              runbooks and state files, rendered for your instance
   stacks/README.md   what reference copies are; the change lore is docs/changing-a-resource.md
-${gitDone ? '  git: initialised on ' + branch + ' with an initial commit' : '  git: not initialised (run git init yourself)'}
+${gitDone ? '  git: committed on ' + branch : '  git: not initialised (run git init yourself)'}
+  lane: ${pub ? 'public lane on (' + pub + ', ' + dnsProvider + ')' : 'no public lane'}; dashboard reachable by: ${uiExposure}
 
-Next
-  0. No server yet, or unsure the firewall is right? docs/provisioning.md is the
-     checklist: cloud VM -> Tailscale -> Coolify -> firewall rules for your answers
-     (${pub ? 'public lane on' : 'no public lane'}; dashboard reachable by: ${uiExposure}).
-  1. In the shell you will run Claude Code from — never in a file in the repo:
+Human steps still ahead (the skill hands these over and verifies them):
+  - docs/provisioning.md if the server, Tailscale, Coolify, or the firewall are not done yet
+  - in the shell Claude Code runs from, never in a file:
        export COOLIFY_BASE_URL=${coolifyUrl || 'http://<tailnet-ip-of-the-host>:8000'}
        export COOLIFY_ACCESS_TOKEN=...      # read + write + deploy scopes; never root
-  2. cd ${rel} && claude
-     Approve the project MCP server when asked, then run /mcp to confirm it connected.
-  3. /setup
-     Verifies the MCP, probes the firewall from outside, creates the projects, deploys
-     the tailnet registrar and the canary, and fills the two state files in docs/.
-
-Have ready before /setup: the Coolify host joined to your tailnet, a Tailscale OAuth
-client with devices:core + services scopes${pub ? ', and a ' + (dnsProvider === 'duckdns' ? 'DuckDNS token' : 'Cloudflare DNS token scoped to the zone') : ''}.
-docs/provisioning.md, docs/tailnet-access.md and docs/internal-services.md explain each.
+    then restart claude so .mcp.json is picked up, and approve the project MCP server
+  - a Tailscale OAuth client with devices:core + services scopes${pub ? ', and a ' + (dnsProvider === 'duckdns' ? 'DuckDNS token' : 'Cloudflare DNS token scoped to the zone') : ''}
 `);
 }
 

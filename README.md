@@ -1,79 +1,66 @@
 # coolify-devops
 
+[![skills.sh](https://skills.sh/b/KasperHonore/coolify-devops)](https://skills.sh/KasperHonore/coolify-devops)
+
 Operate a [Coolify](https://coolify.io) server from [Claude Code](https://claude.com/claude-code)
 through the [Coolify MCP](https://github.com/StuMason/coolify-mcp), with a tailnet-first
 hosting model: internal tools reach the team over Tailscale at `https://<name>.<tailnet>.ts.net`,
 public ones reach the internet at `https://<name>.<your-domain>` via Traefik, and every
 operation goes through the MCP — no SSH, no `docker` CLI on the host.
 
-This repo is two things at once:
-
-1. **A skill library** — five Claude Code skills (`/setup`, `/host`, `/change-service`,
-   `/health`, `/grant-access`) and the runbooks they follow, written and corrected by
-   sessions that ran real operations.
-2. **The deployment repo for one instance** — `instance.yaml`, `stacks/`, and the recorded
-   state in `docs/`. That instance is the reference; yours gets its own repo.
-
-## Quick start
+Five [Agent Skills](https://agentskills.io), installed with the [skills CLI](https://skills.sh):
 
 ```bash
-npx coolify-devops my-coolify        # or: npx github:KasperHonore/coolify-devops my-coolify
+mkdir my-coolify && cd my-coolify
+npx skills add KasperHonore/coolify-devops -a claude-code -y
+claude
 ```
 
-The scaffolder interviews you — where the server runs, Coolify URL, tailnet domain,
-whether you will host public-facing apps (and if so the domain: your own or a free DuckDNS
-one), who may reach the Coolify dashboard, project names, canary, backup policy — and
-generates a deployment repo **specific to your instance**: `CLAUDE.md`, `instance.yaml`, the skills, and the runbooks and state docs all
-rendered with your names and domains, plus a `.mcp.json` that reads the Coolify token from
-your shell. Nothing secret is ever written to a file, and nothing in it describes anyone
-else's instance.
+Then run `/setup`. It interviews you — where the server runs, tailnet domain, whether
+you will host public-facing apps (and if so the domain: your own or a free DuckDNS one),
+who may reach the Coolify dashboard — and scaffolds the deployment repo around the
+skills: `CLAUDE.md`, `instance.yaml`, `.mcp.json` (reads the Coolify token from your
+shell, never a file), and the runbooks in `docs/` rendered for *your* instance. Then it
+hands you the human steps it cannot do — `docs/provisioning.md` covers the VM, Tailscale,
+the Coolify install and the cloud firewall — verifies each one, creates the projects,
+deploys the tailnet registrar ([docktail](https://github.com/dgl/docktail)) and the canary
+service, and accepts with `/health`.
 
-Then:
+| Skill | What it does |
+|---|---|
+| `/setup` | Bootstrap an instance: interview → deployment repo → preconditions → projects → plumbing → canary → `/health` |
+| `/host` | Host something new, end to end: lane, name, research, compose, deploy, the four tailnet verification steps, bookkeeping |
+| `/change-service` | Change a deployed resource safely — compose, env, and `content:` file mounts, where the obvious path changes nothing |
+| `/health` | Read-only sweep: status, reachability, the outside firewall probe, published-port scan, drift against `stacks/` |
+| `/grant-access` | Who can reach which internal tool: onboard, offboard, grant, scope — policy and membership only |
 
-```bash
-export COOLIFY_BASE_URL=https://coolify.example.com
-export COOLIFY_ACCESS_TOKEN=...      # a scoped token: read + write + deploy, never root
-cd my-coolify && claude              # approve the project MCP server when asked
-```
+## How it fits together
 
-and run `/setup`. It verifies the MCP, creates the projects, deploys the tailnet registrar
-([docktail](https://github.com/dgl/docktail)) and the canary service, runs the four
-verification steps that prove the internal lane end to end, and rewrites the docs from the
-and fills in the state docs. `/health` is the acceptance test.
-
-No server yet? `docs/provisioning.md` in the generated repo is the checklist from an
-empty cloud account to a Coolify host that is reachable only over your tailnet: VM,
-Tailscale, the Coolify install, and the cloud firewall rules that follow from your two
-answers (public lane or not; who reaches the dashboard). It is written for Hetzner; any
-provider with a firewall outside the VM works the same way.
-
-Have ready before `/setup` — these are console steps the skill hands to you rather than
-pretends to do:
-
-- the server provisioned per `docs/provisioning.md`, firewall included — `/setup` probes
-  it from outside before it trusts anything;
-- the Coolify host joined to your tailnet with Tailscale SSH enabled (`tailscale up --ssh`)
-  and key expiry disabled on that node;
-- a Tailscale OAuth client with `devices:core` and `services` scopes, and an ACL
-  `autoApprovers.services` entry for the registrar's tag;
-- public lane only: a DNS token — Cloudflare, scoped to the zone, or your DuckDNS token.
-
-`docs/provisioning.md`, `docs/tailnet-access.md` and `docs/internal-services.md` cover each.
-
-## What you get
+The skills operate a **deployment repo**, which `/setup` creates in the directory you
+installed them into. Everything the skills read at run time lives there:
 
 | Path | What it is |
 |---|---|
-| `CLAUDE.md` | The operating rules every session reads: lanes, naming, the write path, the traps |
+| `CLAUDE.md` | The operating rules every session reads: lanes, naming, the write path, the traps. Rendered |
 | `instance.yaml` | Your bindings; skills name its keys instead of hardcoding values |
-| `.claude/skills/` | The five skills |
-| `docs/` | Runbooks rendered for your instance — `platform.md`, `internal-services.md`, `tailnet-access.md`, `changing-a-resource.md` (docktail's traps, Tailscale semantics, what actually recreates a container) — plus two state files, `infrastructure.md` and `tailnet-state.md`, pre-filled from the interview and completed by `/setup` |
-| `stacks/README.md` | What the reference copies are, and that nothing there is applied |
-| `.mcp.json` | `npx @masonator/coolify-mcp@latest` with the URL and token from `${COOLIFY_BASE_URL}` / `${COOLIFY_ACCESS_TOKEN}` |
+| `docs/` | Runbooks rendered for your instance — `provisioning.md`, `platform.md`, `internal-services.md`, `tailnet-access.md`, `changing-a-resource.md` — plus two hand-maintained state files, `infrastructure.md` and `tailnet-state.md` |
+| `stacks/` | Reference copies of what is deployed. Coolify is the write path; nothing here is applied |
+| `.mcp.json` | `npx @masonator/coolify-mcp@latest` with `${COOLIFY_BASE_URL}` / `${COOLIFY_ACCESS_TOKEN}` from your shell |
 
-Flags for non-interactive use: `--yes`, `--coolify-url=`, `--internal-suffix=`,
-`--public-suffix=` / `--no-public`, `--dns-provider=`, `--coolify-ui=`, `--host-provider=`,
-`--same-tailnet`, `--canary=`, `--backups=`, `--branch=`, `--no-git`. `npx coolify-devops --help` lists them.
+The rendered files come from templates bundled *inside* the setup skill
+(`skills/setup/assets/`, rendered by `skills/setup/scripts/scaffold.js`). That is
+deliberate: the skills CLI installs only skill directories, so the runbooks travel with
+the skill and update with it:
+
+```bash
+npx skills update                                        # new skills, new templates
+node .claude/skills/setup/scripts/scaffold.js --render   # re-render CLAUDE.md and docs/ runbooks
+```
+
+The state files and `stacks/` are yours and are never touched by a render.
+
+Install the skills **inside the deployment repo, not globally**: on their own they
+reference `instance.yaml` and `docs/` and are useless.
 
 ## Assumptions the library makes
 
@@ -88,33 +75,13 @@ Flags for non-interactive use: `--yes`, `--coolify-url=`, `--internal-suffix=`,
 - **Coolify is the write path.** `stacks/` holds reference copies, never applied config.
   `docs/iac.md` records why Terraform was evaluated and not adopted.
 
-## Updating a scaffolded repo
-
-Today the scaffold is a copy: your repo owns its skills and docs, and lessons you fold in
-stay local.
-
-**Skills** can be refreshed with the [skills CLI](https://github.com/vercel-labs/skills),
-which finds the five under `skills/` here. Run it **inside the scaffolded repo**, never
-globally — the skills read `instance.yaml` and `docs/` from the repo around them and are
-useless on their own:
-
-```bash
-cd my-coolify
-npx skills add KasperHonore/coolify-devops -a claude-code -y --copy   # same five skills, now updatable
-npx skills update                                                      # later, to pull library changes
-```
-
-**Runbooks** (`docs/`) are rendered for your instance, so `npx skills update` does not
-touch them: diff `docs/` against a fresh scaffold and merge by hand. The planned next
-step — the library as a Claude Code plugin your repo pins, with an upstream path for
-lessons — is designed in `docs/skill-library.md`.
-
 ## Maintaining this repo
 
-The author's own deployment repo consumes this library exactly as a scaffold does:
-`CLAUDE.md` and the runbooks in `docs/` are rendered from `template/` and `docs/` here by
-`npm run render` (reads `instance.yaml`), so what every scaffold receives and what the
-author runs on cannot drift. `npm test` scaffolds
-into a temp dir as a smoke check.
+This repo is the `library/` subtree of the author's own deployment repo, which consumes
+it exactly as a consumer does: `CLAUDE.md` and `docs/` there are rendered from
+`skills/setup/assets/` by `npm run render`, so what every consumer receives and what the
+author runs on cannot drift. `npm test` scaffolds two sample repos into a temp dir and
+fails on any unrendered template tag. Design notes and the record of decisions:
+`skills/setup/assets/docs/skill-library.md`.
 
 License: MIT.

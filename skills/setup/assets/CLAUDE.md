@@ -1,4 +1,4 @@
-{{#IS_LIBRARY}}<!-- Rendered from template/CLAUDE.md + instance.yaml by `npm run render`. Edit the template, not this file. -->
+{{#IS_LIBRARY}}<!-- Rendered from library/skills/setup/assets/CLAUDE.md + instance.yaml by `npm run render`. Edit the template, not this file. -->
 
 {{/IS_LIBRARY}}# Coolify hosting
 
@@ -162,11 +162,18 @@ do not create one, and do not ask to. If work is already sitting on a branch,
 fast-forward `{{COMMIT_BRANCH}}` onto it and delete the branch.{{#IS_LIBRARY}}
 - **Never push this repo.** It holds this instance's state (`docs/`, `stacks/`,
 `instance.yaml`) and has no push remote on purpose. The only thing that leaves it is
-`library/`, published to GitHub by `npm run publish-library` from inside `library/`;
-`.claude/skills/*` are symlinks into `library/skills/`, and this file plus the runbooks
-in `docs/` are rendered from `library/` by `npm run render` — edit the source, then
-render. Nothing instance-specific ever goes under `library/` — the rules are in
-`docs/conventions.md`.{{/IS_LIBRARY}}{{^IS_LIBRARY}} If the repo has a remote,
-push after every commit.{{/IS_LIBRARY}}
+`library/`, published to GitHub by `npm run publish-library` from inside `library/`,
+where consumers install it with `npx skills add`. `.claude/skills/*` are symlinks into
+`library/skills/`; the runbook templates live in `library/skills/setup/assets/`, and
+this file plus the runbooks in `docs/` are rendered from them by `npm run render` —
+edit the source, then render. Nothing instance-specific ever goes under `library/` —
+the rules are in `docs/conventions.md`.{{/IS_LIBRARY}}{{^IS_LIBRARY}} If the repo has
+a remote, push after every commit.
+- **`CLAUDE.md` and the runbooks in `docs/` are rendered outputs.** They come from the
+templates bundled in the setup skill, rendered from `instance.yaml`. Do not hand-edit
+them; change `instance.yaml` (or update the skills with `npx skills update`) and run
+`node .claude/skills/setup/scripts/scaffold.js --render`. The two state files,
+`docs/infrastructure.md` and `docs/tailnet-state.md`, are hand-maintained and never
+re-rendered.{{/IS_LIBRARY}}
 - Guardrails and the checklist for adding a resource are in `docs/platform.md`; the
 inventory, volumes and known gaps are `docs/infrastructure.md`.

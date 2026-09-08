@@ -1,0 +1,15 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "groupings": [
+    {
+      "title": "Start here",
+      "description": "Run once per Coolify instance. Creates the deployment repo the other skills operate.",
+      "skills": ["setup"]
+    },
+    {
+      "title": "Operate",
+      "description": "Day-to-day: host, change, check, and grant access.",
+      "skills": ["host", "change-service", "health", "grant-access"]
+    }
+  ]
+}

@@ -1,6 +1,22 @@
 # The skill library as a distributable product: position
 
-Status, 2026-09-08: **the trigger fired; the physical split is done; distribution is
+Status, 2026-09-08, evening: **distribution is the skills CLI, and only that.** The
+library is installed with `npx skills add KasperHonore/coolify-devops`; the npm
+scaffolder is gone. What forced the shape: the skills CLI installs *only* skill
+directories, nothing outside them, and `npx skills update` fires only when a file
+inside a skill folder changes. So the runbook templates and the renderer moved *into*
+the setup skill (`skills/setup/assets/`, `skills/setup/scripts/scaffold.js`), and
+`/setup` now creates the deployment repo itself: interview → flags → render. The
+other four skills keep reading `docs/` in the deployment repo — they depend on the
+repo `/setup` produced, never on the setup skill's files, which is the one-level-deep,
+no-cross-skill-paths shape the spec and the well-regarded multi-skill repos use. The
+update loop a consumer runs is `npx skills update` then `--render`; the living-runbook
+problem's transport half is thereby solved, the contribution half is still ours.
+The plugin form planned below is no longer the next step; the skills CLI covers the
+same ground (namespacing aside) with a far lower bar for consumers, and this section
+stands as the record of why the plugin route was considered.
+
+Status, 2026-09-08, earlier: **the trigger fired; the physical split is done; distribution is
 a scaffolder; the plugin form is still ahead.** The user asked to share this repo so
 others can get it running with one command — the "first real second consumer" moment
 the Trigger section below reserved the migration for. The first attempt pushed the

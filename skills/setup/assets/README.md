@@ -1,8 +1,9 @@
 # Coolify deployment repo
 
-Scaffolded with [coolify-devops](https://www.npmjs.com/package/coolify-devops). This repo
-is the operating manual and state record for one Coolify instance, driven from Claude
-Code through the Coolify MCP.
+Scaffolded by the `/setup` skill of [coolify-devops](https://github.com/KasperHonore/coolify-devops)
+(installed with `npx skills add KasperHonore/coolify-devops`). This repo is the operating
+manual and state record for one Coolify instance, driven from Claude Code through the
+Coolify MCP.
 
 - `CLAUDE.md` — the rules every session follows. Start here.
 - `instance.yaml` — the bindings for this instance (tailnet, domains, project names).
@@ -22,3 +23,14 @@ claude
 `.mcp.json` reads both variables; the token is never written to this repo. On the first
 run Claude Code asks you to approve the project MCP server. Then `/health` to look,
 `/host <thing>` to deploy, `/setup` if the instance is not bootstrapped yet.
+
+## Updating the skills
+
+```bash
+npx skills update                                        # pulls the latest skills
+node .claude/skills/setup/scripts/scaffold.js --render   # re-renders CLAUDE.md and docs/ runbooks
+```
+
+`CLAUDE.md` and the runbooks in `docs/` are rendered from templates inside the setup
+skill; the two state files (`docs/infrastructure.md`, `docs/tailnet-state.md`) and
+`stacks/` are yours and are never touched by a render.

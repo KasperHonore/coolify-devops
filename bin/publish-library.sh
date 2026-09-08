@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
-# Publish ONLY the library/ subtree to the public GitHub repo.
+# Publish ONLY the library/ subtree to the public GitHub repo, where consumers install
+# it with `npx skills add KasperHonore/coolify-devops`.
 # Run via `npm run publish-library` inside library/, from the deployment repo.
-# The deployment repo itself has no push remote on purpose — see library/docs/conventions.md.
+# The deployment repo itself has no push remote on purpose — see docs/conventions.md in the deployment repo.
 set -eu
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"

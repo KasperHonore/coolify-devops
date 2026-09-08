@@ -11,19 +11,22 @@ and the pivot procedure in `docs/conventions.md`, which this skill automates.
 
 ## 0. Mode, and what this skill cannot do
 
-Three modes — say which one applies before anything else:
+Two modes — say which one applies before anything else:
 
-- **Bootstrap**: a fresh Coolify instance and a new (or empty) deployment repo.
-- **Scaffolded**: the repo was created by `npx coolify-devops` (tell-tales: a
-  `.mcp.json` reading `${COOLIFY_ACCESS_TOKEN}`, a `README.md` saying so, `stacks/`
-  holding only its README). `instance.yaml` already has whatever the scaffolder's
-  interview captured — `""` marks what it did not. `docs/` holds the portable
-  runbooks plus two **skeleton** state files, `infrastructure.md` and
-  `tailnet-state.md`, with placeholders in italics for this skill to fill. Step 1
-  confirms rather than re-asks; step 6 fills the skeletons.
-- **Pivot**: this repo, repointed at a different instance — the procedure in
-  `docs/conventions.md`, "Pivoting to another instance", executed rather than
-  paraphrased.
+- **Bootstrap**: a fresh Coolify instance and a directory that holds nothing but the
+  skills install (`npx skills add KasperHonore/coolify-devops` leaves `.claude/`,
+  `.agents/`, `skills-lock.json`). No `instance.yaml` yet. This skill *creates* the
+  deployment repo: the interview in step 1, then `scripts/scaffold.js` writes
+  `instance.yaml`, `CLAUDE.md`, `.mcp.json`, the rendered runbooks in `docs/`, the two
+  state skeletons, and `stacks/README.md`. Everything this skill and the others read
+  from `docs/` comes from that render — the runbook templates travel inside this
+  skill's `assets/`, so a consumer's repo never depends on any file outside it.
+- **Pivot**: an existing deployment repo, repointed at a different instance — the
+  procedure in `docs/conventions.md`, "Pivoting to another instance", executed rather
+  than paraphrased.
+
+A repo whose `instance.yaml` exists but has `""` for some keys is bootstrap mode
+resumed: confirm what is there, ask only for the blanks, re-render.
 
 Five preconditions are outside any repo's reach. Hand each to the human as a
 prepared step — exact console path or command, verified afterwards, never marked
@@ -49,10 +52,12 @@ done because it was asked for:
      -- npx @masonator/coolify-mcp@latest
    ```
 
-   A scaffolded repo needs none of that: its `.mcp.json` expands `${COOLIFY_BASE_URL}`
-   and `${COOLIFY_ACCESS_TOKEN}` from the shell Claude Code was started in. The
-   prepared step is then "export both, restart `claude`, approve the project server
-   when prompted" — and `/mcp` showing it connected is the verification. An unset
+   A repo this skill scaffolded needs none of that: its `.mcp.json` expands
+   `${COOLIFY_BASE_URL}` and `${COOLIFY_ACCESS_TOKEN}` from the shell Claude Code was
+   started in. The prepared step is then "export both, restart `claude`, approve the
+   project server when prompted" — and `/mcp` showing it connected is the
+   verification. In bootstrap mode this means the order is: interview and scaffold
+   (step 1) first, *then* this precondition, *then* step 2 onwards in a new session. An unset
    variable does not fail loudly: Claude Code loads the server with the literal
    `${VAR}` text and only warns in `claude mcp list`, so a token-shaped 401 from
    `get_version` usually means the export was missing, not the token wrong.
@@ -91,10 +96,26 @@ Ask for each binding; never assume:
 - policy defaults (backups; the write path is always coolify-via-mcp; the commit
   branch).
 
-Write `instance.yaml` from the interview, marking `[pivot]` keys exactly as the
-existing file does. In pivot mode, rewrite the `[pivot]` keys and leave structural
-ones alone. In scaffolded mode, read the file first: confirm each value it already
-holds in one question, and ask only for the keys left as `""`.
+Then, in bootstrap mode, **run the bundled scaffolder with the answers as flags** —
+it writes `instance.yaml` and renders everything else from it:
+
+```bash
+node "${CLAUDE_SKILL_DIR}/scripts/scaffold.js" . \
+  --coolify-url=<url> --internal-suffix=<tailnet> \
+  --public-suffix=<domain-or-omit> --no-public \
+  --dns-provider=cloudflare|duckdns --coolify-ui=tailnet|github|internet \
+  --host-provider=hetzner|other --canary=<name> --backups=recommend-but-no|required
+```
+
+(`--help` lists every flag; omit what was not answered and it stays `""` for later.)
+Relay its closing "human steps still ahead" block to the user verbatim — it is the
+prepared-step handover for preconditions 0, 1 and 3. Never hand-edit `CLAUDE.md` or
+the runbooks in `docs/`: they are rendered outputs, and
+`node "${CLAUDE_SKILL_DIR}/scripts/scaffold.js" --render` regenerates them from
+`instance.yaml` whenever a binding changes or the skills were updated.
+
+In pivot mode, rewrite the `[pivot]` keys in the existing `instance.yaml`, leave
+structural ones alone, and re-render.
 
 ## 2. Verify the MCP before trusting it
 
@@ -165,17 +186,17 @@ is hosted before it passes.
 
 ## 6. Scaffold the deployment repo
 
-Bootstrap mode — create, in this order:
+The deployment repo, in this order:
 
 1. `instance.yaml` (step 1's output).
 2. `CLAUDE.md` — this repo's structure with the header facts (tailnets, suffixes,
    project names) rewritten from the interview; the rules and skill list carry
    over unchanged.
-3. `docs/` — the portable runbooks from the library, plus the two instance-state
-   files: `infrastructure.md` (platform table, inventory, credentials in play,
-   volumes, known gaps) and `tailnet-state.md` ("Where we are today" with the fresh
-   policy state, and the OAuth client's scopes as minted). The library's
-   `template/docs/` holds the skeletons.
+3. `docs/` — the rendered runbooks, plus the two instance-state files:
+   `infrastructure.md` (platform table, inventory, credentials in play, volumes,
+   known gaps) and `tailnet-state.md` ("Where we are today" with the fresh policy
+   state, and the OAuth client's scopes as minted). This skill's `assets/docs/`
+   holds the skeletons; the scaffolder wrote them in step 1.
 4. `stacks/` — the plumbing and canary reference copies from step 4–5, plus the
    short `stacks/README.md` from the library template (the lore itself is
    `docs/changing-a-resource.md`).
@@ -187,14 +208,13 @@ Pivot mode — instead: rewrite the header facts in `CLAUDE.md` and
 grep the repo for the *old* domain suffixes — zero hits outside git history is the
 done condition.
 
-Scaffolded mode — `CLAUDE.md` was rendered from `instance.yaml` by the scaffolder, so
-once the bindings are final it is already right; do not hand-edit its header. The two
-state files exist as skeletons: fill every italic placeholder in
+In practice bootstrap mode already did 1–4 in step 1 through the scaffolder, so what
+remains here is filling the two state skeletons: every italic placeholder in
 `docs/infrastructure.md` (platform table from step 2, inventory and credentials from
 steps 4–5) and `docs/tailnet-state.md` (the policy as pasted from the console, the
 registrar's scopes as minted). Done condition: no italic placeholder left in either
-file. The runbooks in `docs/` were rendered for this instance by the scaffolder;
-they only need re-rendering if `instance.yaml` changes.
+file. `CLAUDE.md` and the runbooks are rendered outputs — never hand-edit them; if a
+binding changed, fix `instance.yaml` and `--render`.
 
 ## 7. Accept
 
