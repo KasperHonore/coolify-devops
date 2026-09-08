@@ -372,9 +372,15 @@ node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render
 `npx skills remove <old-name> -y` for the stale copy. The state files and `stacks/`
 are yours and are never touched by a render.
 
+Each skill's frontmatter carries `license`, `compatibility` (what it needs from its
+environment) and `metadata.version`, which equals the package version. Every push to
+`main` that passes the checks publishes an immutable GitHub release with an
+[Agent Skills](https://agentskills.io) discovery index and one artifact per skill.
+
 This repository is the `library/` subtree of the author's own deployment repo, which
 consumes it exactly as a consumer does, so what every consumer receives and what the
-author runs on cannot drift. `npm test` scaffolds two sample repos into a temp dir
-and fails on any unrendered template tag; `npm run validate` runs
-`claude plugin validate --strict` over the manifests and the skills. Design notes and
-the record of decisions: `skills/setup-coolify-devops/assets/docs/skill-library.md`.
+author runs on cannot drift. `npm run check` is what CI and the publish script run:
+the scaffolder smoke test, the Agent Skills reference validator over each skill, the
+version sync, and a discovery-index build. `AGENTS.md` is the contributor guide, for
+agents and people alike. Design notes and the record of decisions:
+`skills/setup-coolify-devops/assets/docs/skill-library.md`.

@@ -1,6 +1,11 @@
 ---
 name: setup-coolify-devops
 description: Bootstrap a Coolify instance end to end, or pivot this repo to a different one — interview for the bindings, write instance.yaml, verify the MCP, create the projects, deploy the plumbing and the canary, scaffold the deployment repo, and accept with /health. Use when the user says "set up a new instance", "bootstrap this server", "pivot to another Coolify", or hands over a fresh Coolify server to make ready for hosting.
+license: MIT
+compatibility: Run inside the directory that will become the deployment repo, on a machine with the Coolify MCP configured and Node 18+ for the bundled scaffolder. Needs network access to the Coolify API and, optionally, the Tailscale and Hetzner APIs.
+metadata:
+  author: KasperHonore
+  version: "0.2.0"
 ---
 
 # Set up an instance

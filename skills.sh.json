@@ -4,12 +4,20 @@
     {
       "title": "Start here",
       "description": "Run once per Coolify instance. Creates the deployment repo the other skills operate.",
-      "skills": ["setup-coolify-devops"]
+      "skills": [
+        "setup-coolify-devops"
+      ]
     },
     {
       "title": "Operate",
       "description": "Day-to-day: host, change, check, and grant access.",
-      "skills": ["host", "change-service", "health", "grant-access"]
+      "skills": [
+        "host",
+        "change-service",
+        "health",
+        "grant-access"
+      ]
     }
-  ]
+  ],
+  "notGrouped": "bottom"
 }

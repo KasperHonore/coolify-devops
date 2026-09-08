@@ -10,6 +10,9 @@ REMOTE="${LIBRARY_REMOTE:-library}"
 git remote get-url "$REMOTE" >/dev/null 2>&1 || { echo "no remote named '$REMOTE'; add it: git remote add $REMOTE <url>"; exit 1; }
 if [ -n "$(git status --porcelain -- library)" ]; then echo "library/ has uncommitted changes; commit first"; exit 1; fi
 
+# The same checks CI runs on the public repo, so a publish never ships what CI would reject.
+(cd library && npm run check --silent) || { echo "refusing: npm run check failed in library/"; exit 1; }
+
 # Leak guard. The instance's own identifiers come from instance.yaml at run time so
 # that this script never carries them itself. Any IP outside loopback/private ranges
 # also counts.

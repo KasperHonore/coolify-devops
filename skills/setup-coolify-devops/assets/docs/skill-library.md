@@ -32,6 +32,24 @@ both install routes.** Two decisions, both reversing or sharpening what stands b
   cache leaves no unrendered tag). Commands carry the `coolify-devops:` prefix on
   this route. Not done, and not planned: the open Agent Plugins format the companion
   also serves; nothing has asked for it.
+- **The library now has the shape of a proper skills repo**, taken from the Agent
+  Skills specification and from how vercel-labs/agent-skills is built. Each
+  `SKILL.md` carries `license`, `compatibility` and `metadata.author/version`
+  (`skills-ref validate` passes on all five; all are under the 500-line guidance,
+  setup at 421). The library root gained a contributor `AGENTS.md` with a one-line
+  `CLAUDE.md`, `CONTRIBUTING.md`, a `.gitignore`, `scripts/check-versions.mjs`
+  (package, plugin manifest and every skill must agree) and
+  `scripts/build-discovery-index.mjs` (a zero-dependency port of Vercel's: a
+  `dist/index.json` against the discovery schema plus one artifact per skill, a bare
+  `SKILL.md` or a reproducible tar.gz built from git; runs from the deployment repo
+  too, via the git prefix). `.github/workflows/agent-skills.yml` runs `npm run check`
+  on every push and PR of the public repo and publishes an immutable release per
+  push to `main`. The publish script runs the same check before it pushes. Two
+  facts worth keeping: `git ls-tree` run from a subdirectory silently filters to
+  that directory unless `--full-tree` is passed, which made the index build empty
+  from `library/`; and `claude plugin validate --strict` on a plugin root warns
+  about a `CLAUDE.md` there, so that one check is lenient and the reason is in the
+  library's `AGENTS.md`.
 
 Status, 2026-09-08, evening: **distribution is the skills CLI, and only that.** The
 library is installed with `npx skills add KasperHonore/coolify-devops`; the npm

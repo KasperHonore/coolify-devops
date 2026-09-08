@@ -1,6 +1,11 @@
 ---
 name: change-service
 description: Safely change an existing Coolify resource — compose edits, env vars, and especially content:-style file mounts, where the obvious update path rewrites a database row and never the file. Use when the user asks to modify, reconfigure, update, or fix a resource that is already deployed. Encodes the recreate sequence and the verification discipline from stacks/README.md.
+license: MIT
+compatibility: Run from a deployment repo created by setup-coolify-devops with the Coolify MCP configured. Needs network access to the Coolify API.
+metadata:
+  author: KasperHonore
+  version: "0.2.0"
 ---
 
 # Change an existing resource

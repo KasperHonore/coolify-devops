@@ -1,6 +1,11 @@
 ---
 name: grant-access
 description: Manage who can reach internal tools on the tailnet — onboard a person, grant a person or group specific services, scope a service to a narrower audience, or offboard someone. Use when the user says "add <person> to the tailnet", "give <person> access to <tool>", "onboard/offboard <person>", "who can reach <tool>?", or "restrict <tool> to <team>". People and policy only — publishing a service is /host; editing its labels is /change-service.
+license: MIT
+compatibility: Run from a deployment repo created by setup-coolify-devops with the Coolify MCP configured. Edits the tailnet policy through the Tailscale API or admin console; never touches Coolify resources.
+metadata:
+  author: KasperHonore
+  version: "0.2.0"
 ---
 
 # Grant or revoke tailnet access

@@ -1,6 +1,11 @@
 ---
 name: health
 description: Read-only health sweep of the whole Coolify estate — infrastructure overview, unhealthy resources, tailnet spot-checks, and drift detection between live compose and the stacks/ reference copies. Use when the user asks "how is everything", "health check", "status", "anything broken?", or at the start of an ops session before touching anything. Never mutates anything.
+license: MIT
+compatibility: Run from a deployment repo created by setup-coolify-devops with the Coolify MCP configured. Read-only; needs network access to the Coolify API and, optionally, the Tailscale and Hetzner APIs.
+metadata:
+  author: KasperHonore
+  version: "0.2.0"
 ---
 
 # Estate health sweep

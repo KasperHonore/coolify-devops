@@ -1,6 +1,11 @@
 ---
 name: host
 description: Host something new on the Coolify server, end to end — from a git repo, Docker image, or product name to a verified, reachable service. Use when the user says "host X", "deploy X", "spin up X", "put X on the tailnet", or "make X public". Handles lane choice (internal/public), naming, compose authoring, Coolify creation, deployment, verification, and repo bookkeeping.
+license: MIT
+compatibility: Run from a deployment repo created by setup-coolify-devops (instance.yaml and docs/ present) with the Coolify MCP configured. Needs network access to the Coolify API and to upstream project documentation.
+metadata:
+  author: KasperHonore
+  version: "0.2.0"
 ---
 
 # Host a new resource
