@@ -54,9 +54,23 @@ done because it was asked for:
 
    A repo this skill scaffolded needs none of that: its `.mcp.json` expands
    `${COOLIFY_BASE_URL}` and `${COOLIFY_ACCESS_TOKEN}` from the shell Claude Code was
-   started in. The prepared step is then "export both, restart `claude`, approve the
-   project server when prompted" — and `/mcp` showing it connected is the
-   verification. In bootstrap mode this means the order is: interview and scaffold
+   started in. The prepared step is: put both in a **root-only file outside the repo
+   that the shell sources**, so they survive logout and reboot — a bare `export` lasts
+   one session and a user *will* assume otherwise (it happened). Hand over exactly:
+
+   ```bash
+   ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
+   export COOLIFY_BASE_URL=http://localhost:8000     # or the host's tailnet IP:8000 from elsewhere
+   export COOLIFY_ACCESS_TOKEN=<token>               # read + write + deploy scopes; never root
+   EOF
+   ); grep -q coolify-devops.env ~/.bashrc || echo '. ~/.config/coolify-devops.env' >> ~/.bashrc
+   ```
+
+   then a new shell, `claude` from the repo, approve the project server when prompted —
+   and `/mcp` showing it connected is the verification. "Never in a file" means never
+   in a file *in the repo*; a 600-mode file in the user's home is the right place.
+   The session will not survive the restart, so say plainly that the next `/setup`
+   resumes at step 2. In bootstrap mode this means the order is: interview and scaffold
    (step 1) first, *then* this precondition, *then* step 2 onwards in a new session. An unset
    variable does not fail loudly: Claude Code loads the server with the literal
    `${VAR}` text and only warns in `claude mcp list`, so a token-shaped 401 from

@@ -23,7 +23,7 @@ tailnet domain and IPs itself), where the server runs, whether you will host
 public-facing apps (and if so the domain: your own or a free DuckDNS one), who may
 reach the Coolify dashboard — and scaffolds the deployment repo around the
 skills: `CLAUDE.md`, `instance.yaml`, `.mcp.json` (reads the Coolify token from your
-shell, never a file), and the runbooks in `docs/` rendered for *your* instance. Then it
+shell environment — kept in a root-only file in your home, never in the repo), and the runbooks in `docs/` rendered for *your* instance. Then it
 hands you the human steps it cannot do — `docs/provisioning.md` covers the VM, Tailscale,
 the Coolify install and the cloud firewall — verifies each one, creates the projects,
 deploys the tailnet registrar ([docktail](https://github.com/dgl/docktail)) and the canary

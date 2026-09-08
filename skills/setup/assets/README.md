@@ -14,13 +14,19 @@ Coolify MCP.
 
 ## Running a session
 
+`.mcp.json` reads `COOLIFY_BASE_URL` and `COOLIFY_ACCESS_TOKEN` from the shell; the token
+is never written to this repo. Keep them in a root-only file outside the repo that your
+shell sources, so they survive logout and reboot:
+
 ```bash
-export COOLIFY_BASE_URL=https://coolify.example.com
-export COOLIFY_ACCESS_TOKEN=...   # read + write + deploy scopes; never root
-claude
+( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
+export COOLIFY_BASE_URL=http://localhost:8000     # or the host's tailnet IP:8000 from elsewhere
+export COOLIFY_ACCESS_TOKEN=<token>               # read + write + deploy scopes; never root
+EOF
+); grep -q coolify-devops.env ~/.bashrc || echo '. ~/.config/coolify-devops.env' >> ~/.bashrc
 ```
 
-`.mcp.json` reads both variables; the token is never written to this repo. On the first
+Then a new shell and `claude` from this directory. On the first
 run Claude Code asks you to approve the project MCP server. Then `/health` to look,
 `/host <thing>` to deploy, `/setup` if the instance is not bootstrapped yet.
 

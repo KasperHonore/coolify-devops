@@ -292,10 +292,15 @@ ${gitDone ? '  git: committed on ' + branch : '  git: not initialised (run git i
 
 Human steps still ahead (the skill hands these over and verifies them):
   - docs/provisioning.md if the server, Tailscale, Coolify, or the firewall are not done yet
-  - in the shell Claude Code runs from, never in a file:
+  - the MCP token, in a root-only file OUTSIDE this repo, sourced by your shell so it
+    survives logout and reboot (a bare export lasts one session):
+       ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
        export COOLIFY_BASE_URL=${coolifyUrl || (onHost ? 'http://localhost:8000' : 'http://<tailnet-ip-of-the-host>:8000')}
-       export COOLIFY_ACCESS_TOKEN=...      # read + write + deploy scopes; never root
-    then restart claude so .mcp.json is picked up, and approve the project MCP server
+       export COOLIFY_ACCESS_TOKEN=<token>      # read + write + deploy scopes; never root
+       EOF
+       ); grep -q coolify-devops.env ~/.bashrc || echo '. ~/.config/coolify-devops.env' >> ~/.bashrc
+    then open a new shell (or source ~/.bashrc), start claude here so .mcp.json picks the
+    variables up, and approve the project MCP server; /mcp showing it connected is the check
   - a Tailscale OAuth client with devices:core + services scopes${pub ? ', and a ' + (dnsProvider === 'duckdns' ? 'DuckDNS token' : 'Cloudflare DNS token scoped to the zone') : ''}
 `);
 }

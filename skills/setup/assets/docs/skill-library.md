@@ -32,6 +32,10 @@ folded in the same evening:**
 - `localhost:8000` typed without a scheme. The scaffolder normalises it.
 - The general lesson, now in `/setup`: a free-text answer where options were offered
   means the options were wrong — answer the question the user asked, then re-ask.
+- *"I ran the export command. Hopefully that's permanent after reboot."* It is not, and
+  "in your shell, never in a file" invited the misreading. The prepared step now hands
+  over a 600-mode env file in the user's home, sourced from `.bashrc`, and says that
+  "never in a file" means never in the repo.
 - The `tailscale` CLI is the one thing the shell may *change*: node-local settings
   (SSH, tags, hostname) are done by the skill when it has the CLI — on the host, or
   over Tailscale SSH from another machine on the tailnet, which is the single
