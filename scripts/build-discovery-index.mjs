@@ -20,6 +20,7 @@ if (!baseUrl) throw new Error('Usage: node scripts/build-discovery-index.mjs <ar
 
 const git = (args, opts = {}) => execFileSync('git', args, { encoding: 'utf8', ...opts });
 const prefix = git(['rev-parse', '--show-prefix']).trim();           // '' or 'library/'
+const top = git(['rev-parse', '--show-toplevel']).trim();            // git archive scopes to cwd; run it from the top
 const skillsPath = `${prefix}skills`;
 const fixedDate = {
   ...process.env,
@@ -52,7 +53,7 @@ const artifact = (dir) => {
   }
   const tree = git(['rev-parse', `HEAD:${skillsPath}/${dir}`]).trim();
   const commit = git(['commit-tree', tree], { env: fixedDate, input: 'Agent Skills archive\n' }).trim();
-  const tar = execFileSync('git', ['archive', '--format=tar', commit]);
+  const tar = execFileSync('git', ['archive', '--format=tar', commit], { cwd: top });
   return { content: execFileSync('gzip', ['-n', '-9', '-c'], { input: tar }), ext: 'tar.gz', type: 'archive' };
 };
 

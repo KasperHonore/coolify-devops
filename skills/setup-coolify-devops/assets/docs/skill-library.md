@@ -45,9 +45,11 @@ both install routes.** Two decisions, both reversing or sharpening what stands b
   too, via the git prefix). `.github/workflows/agent-skills.yml` runs `npm run check`
   on every push and PR of the public repo and publishes an immutable release per
   push to `main`. The publish script runs the same check before it pushes. Two
-  facts worth keeping: `git ls-tree` run from a subdirectory silently filters to
-  that directory unless `--full-tree` is passed, which made the index build empty
-  from `library/`; and `claude plugin validate --strict` on a plugin root warns
+  facts worth keeping: `git ls-tree` and `git archive` run from a subdirectory
+  silently scope to that directory (`--full-tree` for the first, a top-level `cwd`
+  for the second), which made the index build empty and then the setup skill's
+  archive a 167-byte tarball with no entries, both from `library/`; and
+  `claude plugin validate --strict` on a plugin root warns
   about a `CLAUDE.md` there, so that one check is lenient and the reason is in the
   library's `AGENTS.md`.
 
