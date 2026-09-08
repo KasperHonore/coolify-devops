@@ -91,9 +91,23 @@ Flags for non-interactive use: `--yes`, `--coolify-url=`, `--internal-suffix=`,
 ## Updating a scaffolded repo
 
 Today the scaffold is a copy: your repo owns its skills and docs, and lessons you fold in
-stay local. To pick up library changes, diff `.claude/skills/` and `docs/` against a fresh
-scaffold and merge by hand. The planned next step — the library as a Claude Code plugin
-your repo pins, with an upstream path for lessons — is designed in `docs/skill-library.md`.
+stay local.
+
+**Skills** can be refreshed with the [skills CLI](https://github.com/vercel-labs/skills),
+which finds the five under `skills/` here. Run it **inside the scaffolded repo**, never
+globally — the skills read `instance.yaml` and `docs/` from the repo around them and are
+useless on their own:
+
+```bash
+cd my-coolify
+npx skills add KasperHonore/coolify-devops -a claude-code -y --copy   # same five skills, now updatable
+npx skills update                                                      # later, to pull library changes
+```
+
+**Runbooks** (`docs/`) are rendered for your instance, so `npx skills update` does not
+touch them: diff `docs/` against a fresh scaffold and merge by hand. The planned next
+step — the library as a Claude Code plugin your repo pins, with an upstream path for
+lessons — is designed in `docs/skill-library.md`.
 
 ## Maintaining this repo
 
