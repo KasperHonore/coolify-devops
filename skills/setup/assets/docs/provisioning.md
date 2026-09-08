@@ -95,6 +95,21 @@ disabled by default; `docs/tailnet-access.md` covers tags.)
 Note the tailnet IP: `tailscale ip -4` (a `100.x.y.z` address). From now on that is the
 address of this server for you and your team.
 
+**Who does which part.** The `tailscale` CLI on the server changes the node's own
+settings; the admin console owns the tailnet-wide ones. Claude Code does the CLI half
+itself when it runs on the host, or over Tailscale SSH from another machine on the
+tailnet, and hands you only the console half:
+
+| Setting | Where | Done by |
+|---|---|---|
+| Tailscale SSH on/off | `sudo tailscale set --ssh` | the skill, when it has the CLI |
+| Tags (`tag:server`) | `sudo tailscale up --advertise-tags=tag:server --force-reauth` | the skill, once the tag exists in the policy |
+| Hostname | `sudo tailscale set --hostname=<name>` | the skill |
+| Key expiry | console → Machines → … → Disable key expiry | you |
+| Tailnet name (the `.ts.net` domain) | console → DNS → Tailnet name | you |
+| Policy file (grants, `tagOwners`, `ssh`, `autoApprovers`) | console → Access controls | you (`docs/tailnet-access.md`) |
+| OAuth client for the registrar | console → Settings → OAuth clients | you |
+
 **Done when** `ssh root@<tailnet-ip>` works from your laptop, on the tailnet, **with no
 key involved** (that is Tailscale SSH answering — `tailscale status` on the host lists
 the machine with `ssh` among its capabilities), and the machine shows in the admin

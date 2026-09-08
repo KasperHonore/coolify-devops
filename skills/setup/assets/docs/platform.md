@@ -236,8 +236,9 @@ zero standalone databases.** Consequences worth knowing before you plan work:
 ## Working through MCP: the MCP is the write path, and there is `run_once`
 
 {{#ON_HOST}}Claude Code runs on the Coolify host here, so a shell exists — and it is still not the
-way to change anything (`CLAUDE.md`, *The MCP is the only way in*: read-only shell
-checks yes, mutations never). {{/ON_HOST}}{{^ON_HOST}}There is no exec tool and no SSH from here — Coolify runs on a separate host, reached only
+way to change Coolify's state (`CLAUDE.md`, *The MCP is the only way in*: read-only shell
+checks yes, the `tailscale` CLI for node-local Tailscale settings yes, Docker or
+`/data/coolify` mutations never). {{/ON_HOST}}{{^ON_HOST}}There is no exec tool and no SSH from here — Coolify runs on a separate host, reached only
 through the MCP server. {{/ON_HOST}}That makes a whole class of question feel unanswerable: is the file
 mount actually a file? is anything listening on that port? did that container really get
 recreated? It is not. **`scheduled_tasks` with `action: run_once` runs an arbitrary command

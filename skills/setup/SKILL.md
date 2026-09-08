@@ -64,7 +64,22 @@ done because it was asked for:
 2. **The Coolify host is on the tailnet** (Tailscale installed, signed in with
    `--ssh` so Tailscale SSH is the way onto the box, and — for the registrar's node —
    key expiry disabled; `docs/provisioning.md` section 2, `docs/tailnet-access.md` for
-   the policy side).
+   the policy side). How much of this is a *prepared step* depends on where Claude
+   Code runs:
+   - **On the host**: the `tailscale` CLI is here — verify with `tailscale status`,
+     and if SSH is off, turn it on yourself with `sudo tailscale set --ssh`; likewise
+     tags and hostname. Only the console-side items (key expiry, tailnet name, policy,
+     OAuth client) are handed over.
+   - **On the same tailnet, not the host**: first verify Tailscale SSH works —
+     `ssh -o BatchMode=yes -o ConnectTimeout=5 root@<host-tailnet-ip> tailscale status`
+     succeeds with no key — then use that connection for exactly the on-host scope
+     above: the `tailscale` CLI and read-only checks, never `docker` mutations or
+     `/data/coolify`. If it fails, enabling Tailscale SSH on the host is the one
+     prepared step (someone with a shell there runs `sudo tailscale set --ssh`;
+     the policy must also allow it, `docs/tailnet-access.md`), after which the rest
+     is done from here.
+   - **Elsewhere**: all of section 2 is a prepared step, verified through the
+     control-plane API as `docs/internal-services.md` describes.
 3. **A Tailscale OAuth client exists** with the registrar's scopes (`devices:core`
    and `services` — the working set in `docs/tailnet-access.md`, recorded as minted in
    `docs/tailnet-state.md`), minted in
@@ -92,7 +107,10 @@ curl -4 -s https://api.ipify.org                     # the host's public IP (for
 
 The Coolify URL is then `http://localhost:8000` — do not ask for it. If `tailscale`
 is not installed or not signed in, that is precondition 2 not met; hand over section 2
-of `docs/provisioning.md` and stop.
+of `docs/provisioning.md` and stop. On a machine that is on the same tailnet but not
+the host, run the same three commands over Tailscale SSH
+(`ssh root@<host-tailnet-ip> tailscale status --json`), once precondition 2 has
+confirmed that connection works.
 
 **Read every free-text answer as a signal.** When the user types something instead
 of picking an option, the options were wrong for them: answer what they asked, then

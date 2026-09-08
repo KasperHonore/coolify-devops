@@ -25,6 +25,13 @@ resolves here and `curl -sI` against it is a real reachability check for interna
 services. Still do the MCP-side verification in `docs/internal-services.md` too — it
 proves the service is registered, not just that this machine can see it.
 
+**The `tailscale` CLI is here, and it is the one thing the shell *may* change.** Node-local
+Tailscale settings — Tailscale SSH (`tailscale set --ssh`), tags
+(`tailscale up --advertise-tags=... --force-reauth`), the hostname — are done from
+here directly, not handed to a human. What the CLI cannot do stays a prepared console
+step: key expiry, the tailnet's name, the policy file, OAuth clients
+(`docs/provisioning.md`, section 2, has the table).
+
 **The outside firewall probe cannot be run from here.** Traffic from the host to its
 own public IP never crosses the cloud firewall, so every port would look open. That
 probe is a prepared step for a human on a machine off the tailnet (`docs/provisioning.md`,
@@ -40,6 +47,15 @@ one internal services live on, so `https://<name>.{{INTERNAL_SUFFIX}}` resolves 
 and a browser-level check is possible locally. Still prefer the MCP-side verification in
 `docs/internal-services.md` — it proves the service is registered, not just that one
 machine can see it.
+
+**One exception to "no SSH": Tailscale SSH onto the Coolify host, for the `tailscale`
+CLI and read-only checks only.** If the host has Tailscale SSH enabled,
+`ssh root@<host-tailnet-ip> tailscale status` works from here with no key, and through
+it the node-local Tailscale settings (SSH, tags, hostname) and the read-only checks
+(`curl`, `tailscale status`, `docker ps`) are done directly instead of handed over.
+Nothing else crosses that connection: no `docker` mutations, nothing under
+`/data/coolify` — Coolify's state changes through the MCP only. Console-only items
+(key expiry, tailnet name, policy, OAuth clients) stay prepared human steps.
 {{/SAME_TAILNET}}{{/ON_HOST}}{{^SAME_TAILNET}}
 **Internal URLs do not resolve from here.** This repo is operated from a machine
 {{#OPERATOR_TAILNET}}on the **`{{OPERATOR_TAILNET}}`** tailnet — not {{/OPERATOR_TAILNET}}{{^OPERATOR_TAILNET}}that is **not** on {{/OPERATOR_TAILNET}}the `{{INTERNAL_SUFFIX}}` tailnet

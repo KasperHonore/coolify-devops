@@ -32,6 +32,12 @@ folded in the same evening:**
 - `localhost:8000` typed without a scheme. The scaffolder normalises it.
 - The general lesson, now in `/setup`: a free-text answer where options were offered
   means the options were wrong — answer the question the user asked, then re-ask.
+- The `tailscale` CLI is the one thing the shell may *change*: node-local settings
+  (SSH, tags, hostname) are done by the skill when it has the CLI — on the host, or
+  over Tailscale SSH from another machine on the tailnet, which is the single
+  sanctioned exception to "no SSH" and is scoped to the CLI plus read-only checks.
+  Console-only settings (key expiry, tailnet name, policy, OAuth clients) stay
+  prepared steps; `provisioning.md` section 2 has the table.
 
 Status, 2026-09-08, earlier: **the trigger fired; the physical split is done; distribution is
 a scaffolder; the plugin form is still ahead.** The user asked to share this repo so
