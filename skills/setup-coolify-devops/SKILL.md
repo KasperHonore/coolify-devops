@@ -97,10 +97,25 @@ done because it was asked for:
    - **Elsewhere**: all of section 2 is a prepared step, verified through the
      control-plane API as `docs/internal-services.md` describes.
 3. **A Tailscale OAuth client exists** with the registrar's scopes (`devices:core`
-   and `services` — the working set in `docs/tailnet-access.md`, recorded as minted in
-   `docs/tailnet-state.md`), minted in
-   the admin console; also the ACL needs `autoApprovers.services` for the
-   registrar's tag or every service will sit at *Pending approval*.
+   and `services`, both write — the working set in `docs/tailnet-access.md`, recorded
+   as minted in `docs/tailnet-state.md`); also the ACL needs `autoApprovers.services`
+   for the registrar's tag or every service will sit at *Pending approval*. Three
+   things to get right in how this step is handed over:
+   - **It is console-only.** Admin console → Settings → *Trust credentials* →
+     *Credential* → *OAuth* (older consoles: Settings → *OAuth clients*). Neither the
+     `tailscale` CLI (it manages the node, not the tailnet) nor the API can create an
+     OAuth client — the API only mints tokens *from* one. A user asked "can you create
+     it from the CLI?"; the answer is no, and say why in one line rather than leaving
+     the question hanging.
+   - **The secret is shown once**, on the *Credential created* page, and never again.
+   - **The secret never enters this session.** Do not offer "paste the ID and secret
+     here" — it would land in the transcript, and every `env_vars create` call carrying
+     it would too. The prepared step is: the human copies both values straight from
+     the console into the registrar's environment variables in the Coolify UI (the
+     registrar service → *Environment Variables*; step 4 says which two keys). This
+     skill then verifies only that the two keys exist (`env_vars list`, values masked)
+     and, after deploy, that the registrar's logs show it authenticated. Offer "walk
+     me through the console" as the alternative, never "paste it here".
 4. **Public lane only**: a DNS token for the wildcard record's holder — a Cloudflare
    API token scoped to the zone, or the DuckDNS account token
    (`plumbing.public_dns_provider` says which).
@@ -254,8 +269,22 @@ exist and map them). Each gets the single environment named by `environment`.
 
 Deploy into `projects.infrastructure`:
 
+- **First look for plumbing that already exists.** `list_services` across every
+  project: a registrar or DNS pinner may already be deployed — by an earlier attempt,
+  by hand, or by someone else. If one is there, do not deploy a second one and do not
+  redeploy blind. Read it: image and tag (`get_service`), env keys present (`env_vars
+  list`, masked), status, and its logs. Compare with the shape this skill would deploy
+  (pinned upstream tag, the two credential keys, no published ports, no docktail
+  labels of its own). Then put the choice to the user — **adopt** it as is, **upgrade**
+  the tag in place via `/change-service`, or **replace** it (delete, then deploy fresh;
+  the Tailscale Service definitions it created survive in the control plane, and a new
+  registrar with the same OAuth client picks them up) — with the evidence for each.
+  An old or odd registrar is a finding, not a blocker.
 - **The tailnet registrar** (`plumbing.tailnet_registrar`) — the two OAuth
-  credentials go into its Coolify env store, never the compose. Its compose is
+  credentials go into its Coolify env store, never the compose, and never through this
+  session (precondition 3): create the service with the two env keys *empty*, hand the
+  human the exact place to paste the values in the Coolify UI, verify the keys are set
+  (`env_vars list`, masked), then deploy. Its compose is
   seeded from the reference copy in `stacks/` — **currently missing there; see the
   open item in `docs/skill-library.md`**. Until backfilled, author it from the
   registrar's upstream docs plus the label rules in `docs/internal-services.md`,

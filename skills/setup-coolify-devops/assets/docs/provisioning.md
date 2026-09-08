@@ -108,7 +108,7 @@ tailnet, and hands you only the console half:
 | Key expiry | console → Machines → … → Disable key expiry | you |
 | Tailnet name (the `.ts.net` domain) | console → DNS → Tailnet name | you |
 | Policy file (grants, `tagOwners`, `ssh`, `autoApprovers`) | console → Access controls | you (`docs/tailnet-access.md`) |
-| OAuth client for the registrar | console → Settings → OAuth clients | you |
+| OAuth client for the registrar | console → Settings → Trust credentials → Credential → OAuth (older consoles: Settings → OAuth clients); secret shown once; paste it straight into Coolify, never into a chat | you |
 
 **Done when** `ssh root@<tailnet-ip>` works from your laptop, on the tailnet, **with no
 key involved** (that is Tailscale SSH answering — `tailscale status` on the host lists

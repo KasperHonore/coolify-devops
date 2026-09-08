@@ -50,6 +50,15 @@ folded in the same evening:**
   wall; and the user's own idea — a Hetzner API token as an optional binding, in the
   same env file — lets the skill create the firewall and read its rules back, which is
   also the authoritative answer to "which ports are open" that a probe never was.
+- The OAuth-client step offered *"paste the client ID and secret here"* as its first
+  option, and the user asked *"can you create it from the tailscale CLI?"*. Both now
+  have answers in `/setup-coolify-devops`: the secret never enters the session (the
+  human pastes it into Coolify's env store directly, the skill verifies the keys exist
+  masked), and the client is console-only — the CLI manages the node, the API only
+  mints tokens from an existing client. The same session also found a registrar
+  already deployed on the box; step 4 now starts by looking for existing plumbing and
+  putting adopt / upgrade / replace to the user with evidence, instead of deploying a
+  second one.
 - The `tailscale` CLI is the one thing the shell may *change*: node-local settings
   (SSH, tags, hostname) are done by the skill when it has the CLI — on the host, or
   over Tailscale SSH from another machine on the tailnet, which is the single
