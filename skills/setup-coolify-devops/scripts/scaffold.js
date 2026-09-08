@@ -258,6 +258,10 @@ function renderMode(args) {
   const vars = { ...varsFromInstance(inst), HAS_MCP_JSON: fs.existsSync(path.join(cwd, '.mcp.json')), IS_LIBRARY: fs.existsSync(path.join(cwd, 'library', 'skills')) };
   fs.writeFileSync(path.join(cwd, 'AGENTS.md'), render(tpl, vars));
   fs.writeFileSync(path.join(cwd, 'CLAUDE.md'), CLAUDE_STUB);
+  // The allow-list .gitignore is a rendered output too: when the tracked file set grows
+  // (AGENTS.md did), an old copy silently ignores the new file — refresh it on render,
+  // unless this is the library author's repo, which has its own.
+  if (!vars.IS_LIBRARY) fs.writeFileSync(path.join(cwd, '.gitignore'), fs.readFileSync(path.join(TEMPLATE_DIR, '_gitignore'), 'utf8'));
   renderRunbooks(path.join(cwd, 'docs'), vars);
   const seeded = seedStacks(cwd, vars);
   console.log(`Rendered AGENTS.md and the runbooks in docs/ from instance.yaml${vars.IS_LIBRARY ? ' (library author mode)' : ''}${seeded.length ? '; seeded stacks/' + seeded.join(', stacks/') : ''}`);
