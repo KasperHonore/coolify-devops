@@ -12,6 +12,9 @@
 // in (found from this script's own location under .claude/skills or .agents/skills),
 // falling back to the current directory. It never creates a nested folder — the
 // skills must end up inside the repo they operate, and nobody should have to cd.
+// In the usual setup that directory is root's home on the Coolify host, which is
+// where the Coolify web terminal and Tailscale SSH both land; the .gitignore it
+// writes is an allow-list so a home directory can safely be a git repo.
 //
 // Options:
 //   --yes                   accept defaults for anything not given as a flag (non-interactive; always on)
@@ -224,11 +227,12 @@ async function main() {
     console.error(`Refusing: the skills are installed in ${repoRootFromSkillDir()}, so that is the deployment repo. Run without a target to scaffold there.`);
     process.exit(1);
   }
-  // An empty dir, or one holding nothing but the skills install (.claude/, .agents/,
-  // skills-lock.json, .git) — that is what a fresh `npx skills add` leaves behind.
-  const harmless = new Set(['.claude', '.agents', 'skills-lock.json', '.git', '.gitignore', '.DS_Store']);
-  if (fs.existsSync(target) && fs.readdirSync(target).some(f => !harmless.has(f))) {
-    console.error(`Refusing to scaffold into a directory that already has content: ${target}`);
+  // The target may be a home directory full of other things; that is fine. What is
+  // not fine is overwriting a deployment repo that already exists there.
+  if (target === '/') { console.error('Refusing to scaffold /'); process.exit(1); }
+  const clobber = ['CLAUDE.md', 'instance.yaml', 'docs', 'stacks'].filter(f => fs.existsSync(path.join(target, f)));
+  if (clobber.length) {
+    console.error(`Refusing: ${target} already holds ${clobber.join(', ')}. To re-render an existing repo from its instance.yaml, run with --render.`);
     process.exit(1);
   }
 
@@ -314,8 +318,8 @@ ${gitDone ? '  git: committed on ' + branch : '  git: not initialised (run git i
 
 Human steps still ahead (the skill hands these over and verifies them):
   - docs/provisioning.md if the server, Tailscale, Coolify, or the firewall are not done yet
-  - the MCP token, in a root-only file OUTSIDE this repo, sourced by your shell so it
-    survives logout and reboot (a bare export lasts one session):
+  - the MCP token, in a root-only file sourced by your shell so it survives logout
+    and reboot (a bare export lasts one session; the .gitignore keeps it out of git):
        ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
        export COOLIFY_BASE_URL=${coolifyUrl || (onHost ? 'http://localhost:8000' : 'http://<tailnet-ip-of-the-host>:8000')}
        export COOLIFY_ACCESS_TOKEN=<token>      # read + write + deploy scopes; never root

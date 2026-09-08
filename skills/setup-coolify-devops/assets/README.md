@@ -15,8 +15,8 @@ Coolify MCP.
 ## Running a session
 
 `.mcp.json` reads `COOLIFY_BASE_URL` and `COOLIFY_ACCESS_TOKEN` from the shell; the token
-is never written to this repo. Keep them in a root-only file outside the repo that your
-shell sources, so they survive logout and reboot:
+is never committed. Keep them in a root-only file that your shell sources, so they
+survive logout and reboot (the allow-list `.gitignore` keeps it out of git):
 
 ```bash
 ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
@@ -26,7 +26,13 @@ EOF
 ); grep -q coolify-devops.env ~/.bashrc || echo '. ~/.config/coolify-devops.env' >> ~/.bashrc
 ```
 
-Then a new shell and `claude` from this directory. On the first
+Then a new shell and `claude` from this directory. When this directory is root's home
+on the Coolify host — the usual setup — that is where the Coolify web terminal
+(Servers → Terminal) and Tailscale SSH already land, so there is nothing to `cd` into.
+
+This repo's `.gitignore` is an allow-list: only `CLAUDE.md`, `instance.yaml`, `docs/`,
+`stacks/`, `.mcp.json`, `README.md` and `skills-lock.json` are tracked. Everything else
+in the directory is ignored on purpose. On the first
 run Claude Code asks you to approve the project MCP server. Then `/health` to look,
 `/host <thing>` to deploy, `/setup-coolify-devops` if the instance is not bootstrapped yet.
 

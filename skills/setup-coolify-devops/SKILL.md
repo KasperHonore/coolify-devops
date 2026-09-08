@@ -54,8 +54,8 @@ done because it was asked for:
 
    A repo this skill scaffolded needs none of that: its `.mcp.json` expands
    `${COOLIFY_BASE_URL}` and `${COOLIFY_ACCESS_TOKEN}` from the shell Claude Code was
-   started in. The prepared step is: put both in a **root-only file outside the repo
-   that the shell sources**, so they survive logout and reboot — a bare `export` lasts
+   started in. The prepared step is: put both in a **root-only file that the shell
+   sources**, so they survive logout and reboot — a bare `export` lasts
    one session and a user *will* assume otherwise (it happened). Hand over exactly:
 
    ```bash
@@ -68,7 +68,8 @@ done because it was asked for:
 
    then a new shell, `claude` from the repo, approve the project server when prompted —
    and `/mcp` showing it connected is the verification. "Never in a file" means never
-   in a file *in the repo*; a 600-mode file in the user's home is the right place.
+   in a *tracked* file; a 600-mode file under `~/.config` is the right place, and the
+   allow-list `.gitignore` keeps it out even when the repo is the home directory.
    The session will not survive the restart, so say plainly that the next `/setup-coolify-devops`
    resumes at step 2. In bootstrap mode this means the order is: interview and scaffold
    (step 1) first, *then* this precondition, *then* step 2 onwards in a new session. An unset
@@ -171,9 +172,15 @@ node "${CLAUDE_SKILL_DIR}/scripts/scaffold.js" \
 (`--help` lists every flag; omit what was not answered and it stays `""` for later.)
 **No target directory.** The script scaffolds *in place*, in the directory the skills
 are installed in — it finds that from its own path — so the repo, the skills and the
-session's working directory are the same folder and nobody has to `cd` anywhere.
-Passing a directory name creates a nested repo *without* the skills in it, which is
-exactly what happened once; the script now refuses that.
+session's working directory are the same folder and nobody has to `cd` anywhere. In
+the usual setup that folder is **root's home on the Coolify host**: it is where the
+Coolify web terminal (an SSH session, Servers → Terminal) and Tailscale SSH both land,
+so `claude` there finds everything with no navigation. A home directory full of
+dotfiles is fine — the script only refuses to overwrite an existing repo, and the
+`.gitignore` it writes is an allow-list, so `git add -A` there never picks up the
+token file, shell history or Claude's session data. Passing a directory name creates
+a nested repo *without* the skills in it, which is exactly what happened once; the
+script now refuses that.
 Relay its closing "human steps still ahead" block to the user verbatim — it is the
 prepared-step handover for preconditions 0, 1 and 3. Never hand-edit `CLAUDE.md` or
 the runbooks in `docs/`: they are rendered outputs, and

@@ -9,11 +9,12 @@ public ones reach the internet at `https://<name>.<your-domain>` via Traefik, an
 operation goes through the MCP — no SSH, no `docker` CLI on the host.
 
 Five [Agent Skills](https://agentskills.io), installed with the [skills CLI](https://skills.sh).
-The usual setup is Claude Code running **on the Coolify host itself**, over Tailscale
-SSH, with the skills in a directory there:
+The usual setup is Claude Code running **on the Coolify host itself**, in root's home
+directory — which is where Coolify's own web terminal (Servers → Terminal) and Tailscale
+SSH both land, so there is never anything to `cd` into:
 
 ```bash
-mkdir my-coolify && cd my-coolify
+cd ~
 npx skills add KasperHonore/coolify-devops -a claude-code -y
 claude
 ```
@@ -39,8 +40,10 @@ service, and accepts with `/health`.
 
 ## How it fits together
 
-The skills operate a **deployment repo**, which `/setup-coolify-devops` creates in the directory you
-installed them into. Everything the skills read at run time lives there:
+The skills operate a **deployment repo**, which `/setup-coolify-devops` creates *in
+place*, in the directory you installed them into — usually root's home. Its
+`.gitignore` is an allow-list, so a home directory is safe as a git repo: only the
+files below are ever tracked. Everything the skills read at run time lives there:
 
 | Path | What it is |
 |---|---|

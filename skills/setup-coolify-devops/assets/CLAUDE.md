@@ -25,6 +25,10 @@ resolves here and `curl -sI` against it is a real reachability check for interna
 services. Still do the MCP-side verification in `docs/internal-services.md` too — it
 proves the service is registered, not just that this machine can see it.
 
+This directory is normally root's home: where the Coolify web terminal and Tailscale
+SSH land, so a session starts here with nothing to `cd` into. The `.gitignore` is an
+allow-list — only the repo's own files are tracked — so `git add -A` is safe here.
+
 **The `tailscale` CLI is here, and it is the one thing the shell *may* change.** Node-local
 Tailscale settings — Tailscale SSH (`tailscale set --ssh`), tags
 (`tailscale up --advertise-tags=... --force-reauth`), the hostname — are done from

@@ -148,6 +148,10 @@ Then, in Coolify:
   here later changes that and means editing the GitHub App's URLs by hand. With a
   public lane you may instead put the dashboard behind `https://coolify.{{PUBLIC_SUFFIX}}`
   here, which gets TLS but changes nothing about who can reach the login page{{/UI_INTERNET}}.
+- **Servers → localhost → Terminal** is a root shell on this server, opened through
+  SSH, landing in `/root`. That is where the skills get installed and where Claude Code
+  runs (`cd ~ && npx skills add KasperHonore/coolify-devops -a claude-code -y`, then
+  `claude`); the deployment repo *is* that home directory, so nobody has to `cd`.
 - **Keys & Tokens → API tokens**: create the token the Coolify MCP will use — read,
   write and deploy scopes, **never root** (`docs/platform.md`, *Token scoping*). It goes
   into your shell as `COOLIFY_ACCESS_TOKEN`, never into a file.

@@ -1,3 +1,16 @@
-.claude/settings.local.json
-.env
-node_modules/
+# Allow-list. This repo usually IS the operator's home directory (root's, on the
+# Coolify host — where the Coolify web terminal and Tailscale SSH land), so only the
+# deployment repo's own files are tracked. Everything else — dotfiles, the MCP token
+# env file, shell history, Claude Code's sessions, other projects — stays out, and
+# `git add -A` is safe.
+*
+!.gitignore
+!.mcp.json
+!CLAUDE.md
+!README.md
+!instance.yaml
+!skills-lock.json
+!docs/
+!docs/**
+!stacks/
+!stacks/**

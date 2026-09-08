@@ -39,7 +39,11 @@ folded in the same evening:**
 - *A nested `coolify-devops/` folder appeared*, with the repo inside it and the skills
   outside, and a `cd` nobody would remember. The scaffolder's default target was a new
   directory; it is now the directory the skills are installed in, found from the
-  script's own path, and a positional target that differs from it is refused.
+  script's own path, and a positional target that differs from it is refused. The
+  reason it matters: the skills are installed in **root's home on the Coolify host**,
+  because that is where Coolify's web terminal (an SSH session) lands — so the
+  deployment repo *is* the home directory, and the `.gitignore` became an allow-list
+  so `git add -A` there can never commit the token file or Claude's session data.
 - The `tailscale` CLI is the one thing the shell may *change*: node-local settings
   (SSH, tags, hostname) are done by the skill when it has the CLI — on the host, or
   over Tailscale SSH from another machine on the tailnet, which is the single
