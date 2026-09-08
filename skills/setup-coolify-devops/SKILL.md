@@ -87,10 +87,16 @@ done because it was asked for:
    key expiry disabled; `docs/provisioning.md` section 2, `docs/tailnet-access.md` for
    the policy side). How much of this is a *prepared step* depends on where Claude
    Code runs:
-   - **On the host**: the `tailscale` CLI is here — verify with `tailscale status`,
-     and if SSH is off, turn it on yourself with `sudo tailscale set --ssh`; likewise
-     tags and hostname. Only the console-side items (key expiry, tailnet name, policy,
-     OAuth client) are handed over.
+   - **On the host**: the `tailscale` CLI is here. Verify all three, not just that
+     Tailscale is up: `tailscale status --json | jq -r .Self.HostName` (signed in);
+     `tailscale debug prefs | jq .RunSSH` must be `true` — if not, `sudo tailscale set
+     --ssh` yourself; `tailscale status --json | jq .Self.KeyExpiry` must be `null` —
+     a date means key expiry is *not* disabled and every internal tool goes dark on
+     that date, which is a console step to hand over (Machines → … → Disable key
+     expiry) and to re-check afterwards. (A trial ran `tailscale status`, saw it up,
+     and treated all of this as done; SSH was on by luck, expiry was not disabled.)
+     Only the console-side items (key expiry, tailnet name, policy, OAuth client) are
+     handed over.
    - **On the same tailnet, not the host**: first verify Tailscale SSH works —
      `ssh -o BatchMode=yes -o ConnectTimeout=5 root@<host-tailnet-ip> tailscale status`
      succeeds with no key — then use that connection for exactly the on-host scope
@@ -117,6 +123,13 @@ done because it was asked for:
      the human step as short as it can be: link, two scopes, a tag, two values pasted
      into a Coolify page that already exists (step 4 creates it first).
    - **The secret is shown once**, on the *Credential created* page, and never again.
+   - **Hand over the policy edit in the same breath**, as an exact block to paste
+     into Access controls, not a description — the `tagOwners` and
+     `autoApprovers.services` entries for the tag the OAuth client is created with
+     (`docs/tailnet-access.md`, *A model that grows*, has the shape). Without it every
+     Service sits at *Pending approval*, and a trial only surfaced this after the
+     registrar detour, four questions deep. The skill holds no credential with
+     `policy_file` scope, so it cannot apply this itself; say so once, up front.
    - **The secret never enters this session.** Do not offer "paste the ID and secret
      here" — it would land in the transcript, and every `env_vars create` call carrying
      it would too. The prepared step is: the human copies both values straight from
@@ -131,11 +144,14 @@ done because it was asked for:
 
 ## 1. Interview → `instance.yaml`
 
-**First, where is Claude Code running?** Ask with three options: on the Coolify host
-itself (the usual case, and the recommended one — `--on-host`), on another machine that
-is on the host's tailnet (`--same-tailnet`), or elsewhere. "Is it on the same tailnet?"
-alone misses the first, which changes what this skill can verify itself (step 2) and
-lets it *discover* the next bindings instead of asking for them.
+**First, where is Claude Code running?** Three possible answers: on the Coolify host
+itself (the usual case — `--on-host`), on another machine that is on the host's tailnet
+(`--same-tailnet`), or elsewhere. If `curl -sI http://localhost:8000` answers and
+`tailscale status` works, the first is a safe inference — state it in one line and
+confirm it inside the first question rather than asking it separately (a trial skipped
+the question because the evidence made it redundant; that is fine, silently assuming is
+not). It changes what this skill can verify itself (step 2) and lets it *discover* the
+next bindings instead of asking for them.
 
 **On the host, discover rather than ask** — and confirm what was found in one line:
 
@@ -177,11 +193,10 @@ Ask for each remaining binding; never assume:
   dashboard and push-to-deploy*,
 - where the server runs (`host.provider`) — decides which console
   `docs/provisioning.md` describes,
-- project names (offer the defaults from this repo's `instance.yaml` shape:
-  internal / public / infrastructure),
-- the canary name (default `whoami`),
-- policy defaults (backups; the write path is always coolify-via-mcp; the commit
-  branch).
+- project names, the canary name (`whoami`), the commit branch (`main`) and the backup
+  policy: **one confirmation question listing the defaults**, not four questions and
+  not a silent assumption (a trial assumed them all; the skill said never assume — this
+  is the middle). The public project is only created when there is a public lane.
 
 Then, in bootstrap mode, **run the bundled scaffolder with the answers as flags** —
 it writes `instance.yaml` and renders everything else from it:
@@ -217,7 +232,9 @@ structural ones alone, and re-render.
 
 ## 2. Verify the MCP before trusting it
 
-`get_version` answers and its value is recorded as `coolify.version_observed`;
+`get_version` answers and its value is recorded as `coolify.version_observed` — with
+`node "${CLAUDE_SKILL_DIR}/scripts/scaffold.js" --render --set=coolify.version_observed=<v>`,
+which rewrites that one line and re-renders, never by hand-editing `instance.yaml`;
 `get_mcp_version` goes into the platform table of `docs/infrastructure.md` (its tool
 names have moved between majors, so the version explains any doc/tool mismatch);
 `list_servers` shows the server reachable and validated; `list_destinations` says how
@@ -238,7 +255,10 @@ someone off the tailnet is at hand — it proves enforcement, the API proves con
 but do not block on it. Without the token, the probe is the only check:
 
 `get_server` gives the host's public IP.
-The probe has to come from a machine that is **off the tailnet and not the host**:
+**The public IP does not come from `get_server`** — on the `localhost` server it
+returns `host.docker.internal`. On the host use `curl -4 -s https://api.ipify.org`;
+off the host, resolve the Coolify URL's hostname, or ask. The probe has to come from a
+machine that is **off the tailnet and not the host**:
 traffic from the host to its own public IP never crosses the cloud firewall, so run
 on the host (`operator.on_host` true) it would show every port open and prove nothing.
 On the host, hand the loop below to the human as a prepared step — "from your
@@ -259,8 +279,11 @@ met — hand back the firewall section of `docs/provisioning.md`, and offer the 
 route: a Hetzner token in the env file lets this skill do it. **If nobody can act on
 it now, do not block the rest of the setup**: record the firewall as a known gap in
 `docs/infrastructure.md` with the probe result, insist that 2FA is on for the Coolify
-account (the login page is on the internet until the gap closes), and continue. A
-skipped step recorded as a gap is honest; a skipped step marked done is not. Record the
+account (the login page is on the internet until the gap closes), and continue. A skipped step recorded as a gap is honest; a skipped step marked done is not.
+"Continue" means the whole setup, including deletes and deploys — internal tools have
+no published ports, so nothing this skill creates becomes reachable through the open
+firewall; what stays exposed is 22 and 8000, and the gap says so. Do not call it
+"read-only groundwork" and then delete a service (a trial did). Record the
 result and date in the *Dashboard exposure* row of `docs/infrastructure.md`.
 
 Optional, and never part of the bootstrap: MCP 3.x can also run *inside* Coolify in
@@ -271,8 +294,20 @@ tools.
 
 ## 3. Projects
 
-Create the three projects from `projects.*` (or, in pivot/adopt mode, confirm they
-exist and map them). Each gets the single environment named by `environment`.
+**Inventory first, in every mode**: `projects list`, then `list_services` /
+`list_applications` / `list_databases`. A fresh-looking instance may already carry
+projects and resources from an earlier attempt (a trial found `Infrastructure`,
+`Internal Tools` and a running stand-in registrar on a box that was "new"). Map what
+exists onto `projects.*` — rename a near-match (`Internal Tools` → `Internal tools`)
+rather than creating a duplicate — and create only what is missing. **No public
+lane, no public project**: `projects.public` is created only when
+`domains.public_suffix` is set. Anything found that the model does not expect is put
+to the user before step 4 touches it.
+
+Coolify API facts that cost a trial three retries: a project's `production`
+environment is **created with the project** (an explicit `environments create` fails
+with "already exists"), and project descriptions reject `:` and `;` (letters, numbers,
+spaces and `- _ . , ! ? ( ) ' " + = * / @ &` only).
 
 ## 4. Plumbing
 
@@ -294,10 +329,20 @@ Deploy into `projects.infrastructure`:
   session (precondition 3): create the service with the two env keys *empty*, hand the
   human the exact place to paste the values in the Coolify UI, verify the keys are set
   (`env_vars list`, masked), then deploy. Its compose is
-  seeded from the reference copy in `stacks/` — **currently missing there; see the
-  open item in `docs/skill-library.md`**. Until backfilled, author it from the
-  registrar's upstream docs plus the label rules in `docs/internal-services.md`,
-  and write the reference copy as part of this step.
+  `stacks/<registrar>/docker-compose.yml`, seeded into the repo at scaffold time from
+  the copy this skill carries (`assets/stacks/`) — pinned image, the two credential
+  keys, no ports, no labels of its own; the image ships its own healthcheck. Use it as
+  written; do not research upstream (a trial spent eight web calls on that before the
+  copy existed). `stacks/<registrar>/README.md` explains the wiring and the stand-in
+  to watch for.
+- **Two MCP behaviours to respect here.** `service delete` is *asynchronous* — it
+  answers "queued"; re-run `list_services` until the name is gone before creating its
+  replacement, or the two collide. `service create` *does not deploy* — it stores the
+  definition; the service starts only on `deploy` / `control start`, and for the
+  registrar that must wait until both credential keys are set (`env_vars list`,
+  masked, both present). Then start it, then `get_service` until `running:healthy`,
+  then read its logs for the authentication line. A registrar left in "created, not
+  deployed" looks done in the project view and is not (a trial ended that way).
 - **The public-DNS pinner** (`plumbing.public_dns`) — only if a public lane was
   chosen; the token goes in its env store. Which pinner depends on
   `plumbing.public_dns_provider`: a Cloudflare DDNS updater holding a zone-scoped

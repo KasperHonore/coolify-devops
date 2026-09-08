@@ -1,0 +1,12 @@
+# Reference copy — Coolify's database is the source of truth (stacks/README.md).
+# The public-DNS pinner (DuckDNS): re-pins the subdomain every 5 minutes. DuckDNS
+# resolves every name under it to the same address, so this one record is the
+# wildcard. The account token lives in the Coolify env store.
+services:
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    restart: unless-stopped
+    environment:
+      - SUBDOMAINS={{DUCKDNS_SUBNAME}}
+      - TOKEN=${DUCKDNS_TOKEN}
+      - TZ=Etc/UTC

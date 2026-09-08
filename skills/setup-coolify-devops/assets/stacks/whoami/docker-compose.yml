@@ -1,0 +1,13 @@
+# Reference copy — Coolify's database is the source of truth (stacks/README.md).
+# The canary: proves the internal lane end to end. Born at service-port=443 — never
+# change that label on an existing service (docs/internal-services.md).
+services:
+  whoami:
+    image: traefik/whoami:v1.11
+    restart: unless-stopped
+    labels:
+      - docktail.service.enable=true
+      - docktail.service.name={{CANARY}}
+      - docktail.service.port=80
+      - docktail.service.service-port=443
+      - docktail.service.description=Internal connectivity test

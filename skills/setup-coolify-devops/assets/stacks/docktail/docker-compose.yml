@@ -1,0 +1,18 @@
+# Reference copy — Coolify's database is the source of truth (stacks/README.md).
+# The tailnet registrar: watches docktail.service.* labels on other containers and
+# registers them as Tailscale Services via the control-plane API. Upstream:
+# https://github.com/marvinvr/docktail — pin the current release tag, never latest.
+services:
+  docktail:
+    image: ghcr.io/marvinvr/docktail:1.7.9
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/tailscale:/var/run/tailscale
+    environment:
+      # both values live in this service's Coolify env store, pasted there by a human
+      # straight from the Tailscale console — never through a session, never here
+      - TAILSCALE_OAUTH_CLIENT_ID=${TAILSCALE_OAUTH_CLIENT_ID}
+      - TAILSCALE_OAUTH_CLIENT_SECRET=${TAILSCALE_OAUTH_CLIENT_SECRET}
+      - LOG_LEVEL=info
+    # no ports, no FQDN, no docktail labels of its own; the image ships its own healthcheck

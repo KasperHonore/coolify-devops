@@ -65,9 +65,11 @@ A skill is tested by an agent that did not write it:
 4. Trials are **real operations, not simulations** — get the user's go-ahead before
    one that mutates live state.
 
-Trial status: `/host` has had a real trial (2026-08-25). **`/change-service`,
-`/health`, `/grant-access`, and `/setup-coolify-devops` have not** — their first real use doubles as
-their trial; friction log mandatory.
+Trial status: `/host` (2026-08-25) and `/setup-coolify-devops` (2026-09-08, on a
+real fresh Hetzner box, by someone other than the author; the log is summarised in
+`skill-library.md`) have had real trials. **`/change-service`, `/health` and
+`/grant-access` have not** — their first real use doubles as their trial; friction log
+mandatory.
 
 ## Pivoting to another instance
 

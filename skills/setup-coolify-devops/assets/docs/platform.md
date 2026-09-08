@@ -320,6 +320,11 @@ Confirmed on Coolify 4.3.10; re-check on newer versions. All of these cost time 
 
 | Behaviour | What to do |
 |---|---|
+| `get_server` on the `localhost` server returns `ip: host.docker.internal` | Not the public IP. On the host, `curl -4 -s https://api.ipify.org`; elsewhere, resolve the Coolify URL's hostname |
+| `service delete` answers "queued" and returns before the service is gone | Re-run `list_services` until the name is absent before creating a replacement with the same name |
+| `service create` stores the definition and does **not** deploy it | Follow with `deploy` / `control start` and poll `get_service` for `running:healthy`; a created-not-started service looks fine in the project view |
+| `environments create` for `production` in a new project fails with "already exists" | Coolify creates it with the project; do not call it |
+| Project descriptions reject `:` and `;` | Letters, numbers, spaces and `- _ . , ! ? ( ) ' " + = * / @ &` only |
 | `logs` with `resource: service` **has returned HTTP 500** for every container name — but worked normally throughout a 2026-08 deploy | Try `logs` first and fall back to `run_once`. Treat the 500 as intermittent or since-fixed, not as a law; neither a success nor a 500 today predicts tomorrow. |
 | **Deployment history is invisible for services.** `list_deployments` returns `[]`; `deployment list_for_app` says "Application not found" | Build failures cannot be read back. Poll the endpoint, and use `run_once` to inspect the result. |
 | `deploy` with `wait: true` **does not wait** for a service — it returns fire-and-forget with no deployment uuid | Poll the site or `list_containers` yourself. |

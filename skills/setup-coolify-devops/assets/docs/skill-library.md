@@ -62,6 +62,22 @@ folded in the same evening:**
 - The rendered rules file is now **`AGENTS.md`**, with `CLAUDE.md` a one-line
   `@AGENTS.md` import. The skills CLI installs for many agents; the rules should be
   readable by all of them without a second copy to drift.
+- **The full transcript, read afterwards** (19 minutes, 9 questions, 145 assistant
+  turns), added what the live reports had not: the agent skipped the "where is Claude
+  Code running" question because the evidence made it obvious (now allowed, with a
+  one-line confirmation); it assumed the default project/canary/branch names (now one
+  confirmation question); `get_server` returned `host.docker.internal` instead of the
+  public IP (documented); the docktail reference compose was missing, costing eight
+  web calls (now shipped in the skill and seeded into `stacks/`); `service delete` is
+  asynchronous and `service create` does not deploy, so the new registrar was left
+  created-but-never-started (both now in the skill and the rough-edges table);
+  Coolify auto-creates the `production` environment and rejects `:`/`;` in
+  descriptions (documented); precondition 2 was assumed from `tailscale status` alone
+  — SSH happened to be on, key expiry was not disabled (exact checks now listed); and
+  the policy block for `autoApprovers.services` surfaced four questions deep instead
+  of with the OAuth handover (moved up front). `--set` on the scaffolder records
+  `coolify.version_observed` without hand edits, and the scaffold sets a repo-local
+  git identity so later commits do not fall back to `root@<hostname>`.
 - The `tailscale` CLI is the one thing the shell may *change*: node-local settings
   (SSH, tags, hostname) are done by the skill when it has the CLI — on the host, or
   over Tailscale SSH from another machine on the tailnet, which is the single
@@ -237,13 +253,14 @@ GitHub App creation through the allow-listed port — are what that trial settle
 
 ## Open items
 
-- **The deployment repo's `stacks/` lacks reference copies for the plumbing and
-  canary** (`docktail`, `cloudflare-ddns`, `whoami`) — exactly the composes the setup
-  skill needs as seeds, and which would belong in `library/template/` once
-  genericised. Backfilling needs the compose bodies from Coolify; `get_service
-  reveal: true` is currently denied by the session permission classifier, so this
-  waits on a settings-level allow or a human paste. Reconstructing them from
-  memory would betray what `stacks/` is.
+- ~~The deployment repo's `stacks/` lacks reference copies for the plumbing and
+  canary~~ — **closed 2026-09-08**: `get_service reveal: true` worked once permissions
+  allowed it; the live composes of the reference instance's `docktail`, `whoami` and
+  `cloudflare-ddns` were genericised into `skills/setup-coolify-devops/assets/stacks/`
+  (plus a DuckDNS pinner), pinned to release tags, and are seeded into every
+  deployment repo's `stacks/` at scaffold time. The reference instance itself still
+  runs `latest` tags for all three — recorded there as a known gap, and `/health`
+  will report the drift against the seeded copies until they are pinned.
 
 ## The setup skill
 

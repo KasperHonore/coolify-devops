@@ -33,6 +33,8 @@
 //   --branch=X              commit branch (default main)
 //   --no-git                skip git init + initial commit
 //   --render                re-render ./AGENTS.md and the runbooks in ./docs/ from ./instance.yaml
+//   --set a.b=value         (with --render) update one instance.yaml key first, e.g.
+//                           --set coolify.version_observed=4.3.18 — keeps the file's comments intact
 //                           (after `npx skills update`, or after editing instance.yaml); never
 //                           touches the state files docs/infrastructure.md and docs/tailnet-state.md
 //   --help
@@ -59,6 +61,7 @@ function parseArgs(argv) {
     else if (a === '--no-public') out.noPublic = true;
     else if (a === '--no-git') out.noGit = true;
     else if (a === '--render') out.render = true;
+    else if (a.startsWith('--set=')) { (out.set = out.set || []).push(a.slice(6)); }
     else if (a.startsWith('--') && a.includes('=')) {
       const [k, ...v] = a.slice(2).split('=');
       out[k.replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = v.join('=');
@@ -130,6 +133,7 @@ function varsFromInstance(inst) {
     PUBLIC_SUFFIX: pub || '<public-suffix>',
     HAS_PUBLIC: Boolean(pub),
     DNS_PROVIDER: dnsProvider,
+    DUCKDNS_SUBNAME: pub.replace(/\.duckdns\.org$/i, ''),
     DNS_CLOUDFLARE: dnsProvider === 'cloudflare',
     DNS_DUCKDNS: dnsProvider === 'duckdns',
     UI_EXPOSURE: ui,
@@ -191,6 +195,45 @@ function has(cmd) {
 // the same file without a second copy to drift.
 const CLAUDE_STUB = '@AGENTS.md\n';
 
+// Reference copies of the plumbing and canary composes ship with the skill so /setup
+// never has to research upstream. Rendered into stacks/<name>/ once, at scaffold time
+// (or on --render when the folder is missing); after that the folder belongs to the
+// instance and is never overwritten. Which pinner ships depends on the lane and provider.
+function seedStacks(target, vars) {
+  const src = path.join(TEMPLATE_DIR, 'stacks');
+  if (!fs.existsSync(src)) return [];
+  const want = new Set([vars.REGISTRAR === 'docktail' ? 'docktail' : null, vars.CANARY === 'whoami' ? 'whoami' : null,
+    vars.HAS_PUBLIC ? (vars.DNS_DUCKDNS ? 'duckdns' : 'cloudflare-ddns') : null].filter(Boolean));
+  const seeded = [];
+  for (const name of fs.readdirSync(src)) {
+    if (!want.has(name)) continue;
+    const dst = path.join(target, 'stacks', name);
+    if (fs.existsSync(dst)) continue;
+    fs.mkdirSync(dst, { recursive: true });
+    for (const f of fs.readdirSync(path.join(src, name))) {
+      fs.writeFileSync(path.join(dst, f), render(fs.readFileSync(path.join(src, name, f), 'utf8'), vars));
+    }
+    seeded.push(name);
+  }
+  return seeded;
+}
+
+// --set a.b=value: rewrite one two-level key in instance.yaml in place, keeping comments.
+function setInstanceKey(file, spec) {
+  const m = spec.match(/^([A-Za-z_][\w-]*)\.([A-Za-z_][\w-]*)=(.*)$/);
+  if (!m) { console.error(`--set expects section.key=value, got ${spec}`); process.exit(1); }
+  const [, section, key, value] = m;
+  const lines = fs.readFileSync(file, 'utf8').split('\n');
+  let inSection = false, done = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^[A-Za-z_][\w-]*:/.test(lines[i])) inSection = lines[i].startsWith(section + ':');
+    const km = inSection && lines[i].match(new RegExp(`^(\\s+${key}:\\s*)(\"[^\"]*\"|[^#]*?)(\\s*#.*)?$`));
+    if (km) { lines[i] = km[1] + (value === '' ? '""' : value) + (km[3] || ''); done = true; break; }
+  }
+  if (!done) { console.error(`--set: ${section}.${key} not found in ${file}`); process.exit(1); }
+  fs.writeFileSync(file, lines.join('\n'));
+}
+
 // The runbooks in assets/docs/ are templates: rendered with the instance's bindings so
 // a deployment repo reads as its own, never as the library author's.
 const RUNBOOK_BANNER = '<!-- Rendered from library/skills/setup-coolify-devops/assets/docs/%s by `npm run render`. Edit the source, not this file. -->\n\n';
@@ -205,8 +248,9 @@ function renderRunbooks(targetDocs, vars) {
 
 // ---------- maintainer mode: re-render this repo's AGENTS.md and runbooks ----------
 
-function renderMode() {
+function renderMode(args) {
   const cwd = process.cwd();
+  for (const spec of [].concat(args.set || [])) setInstanceKey(path.join(cwd, 'instance.yaml'), spec);
   const inst = readInstanceYaml(path.join(cwd, 'instance.yaml'));
   const tpl = fs.readFileSync(path.join(TEMPLATE_DIR, 'AGENTS.md'), 'utf8');
   // IS_LIBRARY: the library author's own deployment repo, which carries library/ and
@@ -215,7 +259,8 @@ function renderMode() {
   fs.writeFileSync(path.join(cwd, 'AGENTS.md'), render(tpl, vars));
   fs.writeFileSync(path.join(cwd, 'CLAUDE.md'), CLAUDE_STUB);
   renderRunbooks(path.join(cwd, 'docs'), vars);
-  console.log(`Rendered AGENTS.md and the runbooks in docs/ from instance.yaml${vars.IS_LIBRARY ? ' (library author mode)' : ''}`);
+  const seeded = seedStacks(cwd, vars);
+  console.log(`Rendered AGENTS.md and the runbooks in docs/ from instance.yaml${vars.IS_LIBRARY ? ' (library author mode)' : ''}${seeded.length ? '; seeded stacks/' + seeded.join(', stacks/') : ''}`);
 }
 
 // ---------- scaffold ----------
@@ -226,7 +271,7 @@ async function main() {
     console.log(fs.readFileSync(__filename, 'utf8').split('\n').filter(l => l.startsWith('//')).map(l => l.slice(3)).join('\n'));
     return;
   }
-  if (args.render) return renderMode();
+  if (args.render) return renderMode(args);
 
   const target = path.resolve(process.cwd(), args._[0] || repoRootFromSkillDir() || '.');
   if (args._[0] && repoRootFromSkillDir() && target !== repoRootFromSkillDir()) {
@@ -285,6 +330,7 @@ async function main() {
   renderRunbooks(path.join(target, 'docs'), vars);
   fs.mkdirSync(path.join(target, 'stacks'), { recursive: true });
   fs.copyFileSync(path.join(TEMPLATE_DIR, 'stacks-README.md'), path.join(target, 'stacks', 'README.md'));
+  const seeded = seedStacks(target, vars);
 
   // 2. Instance files, rendered.
   const write = (rel, content) => {
@@ -306,9 +352,13 @@ async function main() {
   // 3. Git.
   let gitDone = false;
   if (!args.noGit && has('git')) {
+    // A repo-local identity, so later commits by a skill do not fall back to
+    // root@<hostname> and a warning (seen in a trial).
     gitDone = (fs.existsSync(path.join(target, '.git')) || run('git', ['init', '-q', '-b', branch], target))
+      && run('git', ['config', 'user.name', 'coolify-devops'], target)
+      && run('git', ['config', 'user.email', 'coolify-devops@localhost'], target)
       && run('git', ['add', '-A'], target)
-      && run('git', ['-c', 'user.name=coolify-devops', '-c', 'user.email=coolify-devops@localhost', 'commit', '-q', '-m', 'Scaffold deployment repo with coolify-devops'], target);
+      && run('git', ['commit', '-q', '-m', 'Scaffold deployment repo with coolify-devops'], target);
   }
 
   const rel = path.relative(process.cwd(), target) || '.';
@@ -319,7 +369,7 @@ Scaffolded ${rel}/
   instance.yaml      your bindings${internal ? '' : ' (blank — /setup-coolify-devops fills them)'}
   .mcp.json          Coolify MCP wiring; reads COOLIFY_BASE_URL and COOLIFY_ACCESS_TOKEN from your shell
   docs/              runbooks and state files, rendered for your instance
-  stacks/README.md   what reference copies are; the change lore is docs/changing-a-resource.md
+  stacks/            reference copies seeded for: ${seeded.join(', ') || '(none)'} — plus README.md
 ${gitDone ? '  git: committed on ' + branch : '  git: not initialised (run git init yourself)'}
   lane: ${pub ? 'public lane on (' + pub + ', ' + dnsProvider + ')' : 'no public lane'}; dashboard reachable by: ${uiExposure}
   operated from: ${onHost ? 'the Coolify host itself' : same ? 'a machine on the same tailnet' : 'a machine off the tailnet'}

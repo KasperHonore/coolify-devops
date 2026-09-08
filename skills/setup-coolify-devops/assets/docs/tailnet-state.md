@@ -24,7 +24,8 @@ for one person; the first thing to change when someone else joins (`tailnet-acce
 ## Credentials and scopes as minted
 
 * `{{REGISTRAR}}` OAuth client: _(scopes as shown in the console when minted — expected
-  `devices:core services`; re-check with the `wget` snippet in `tailnet-access.md`)_.
+  `devices:core services` — the console shows them as *Devices → Core: Write* and
+  *Services: Write*; re-check with the `wget` snippet in `tailnet-access.md`)_.
 
 ## Per-tool decisions that bear on access
 

@@ -16,5 +16,7 @@ took. `/change-service` walks it.
 
 ## What is here
 
-Nothing yet. `/setup-coolify-devops` adds the plumbing and canary reference copies; `/host` adds a
-folder for every resource with non-obvious wiring or file mounts, and updates this list.
+The plumbing and canary reference copies were seeded here by `/setup-coolify-devops`
+from the templates it carries (one folder per resource it deploys: the registrar, the
+canary, and the DNS pinner when there is a public lane). `/host` adds a folder for every
+resource with non-obvious wiring or file mounts, and updates this list.

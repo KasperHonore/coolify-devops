@@ -1,0 +1,13 @@
+# Reference copy — Coolify's database is the source of truth (stacks/README.md).
+# The public-DNS pinner (Cloudflare): keeps the wildcard A record pointed at this
+# host's current public IP. The zone-scoped token lives in the Coolify env store.
+services:
+  cloudflare-ddns:
+    image: favonia/cloudflare-ddns:1.15.1
+    restart: unless-stopped
+    environment:
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - DOMAINS=*.{{PUBLIC_SUFFIX}}
+      - IP6_PROVIDER=none
+      - PROXIED=false
+      - TZ=Etc/UTC
