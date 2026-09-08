@@ -1,0 +1,36 @@
+{
+  "name": "coolify-devops",
+  "version": "0.1.0",
+  "description": "Scaffold a Claude Code deployment repo for operating a Coolify server through the Coolify MCP: skills, runbooks, and a tailnet-first hosting model.",
+  "bin": {
+    "coolify-devops": "bin/create.js"
+  },
+  "files": [
+    "bin",
+    "template",
+    "docs",
+    "skills"
+  ],
+  "scripts": {
+    "render": "cd .. && node library/bin/create.js --render",
+    "publish-library": "sh bin/publish-library.sh",
+    "test": "node bin/create.js --yes --no-git /tmp/coolify-devops-smoke && rm -rf /tmp/coolify-devops-smoke"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "coolify",
+    "claude-code",
+    "mcp",
+    "tailscale",
+    "devops",
+    "skills"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KasperHonore/coolify-devops.git"
+  },
+  "homepage": "https://github.com/KasperHonore/coolify-devops#readme"
+}

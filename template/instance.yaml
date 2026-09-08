@@ -1,0 +1,40 @@
+# Instance bindings — every value that would change if this repo pivoted to a
+# different Coolify instance or tailnet. Skills and scripts read this file instead
+# of hardcoding these values; docs/ may state them in prose because docs describe
+# this instance. No secrets in here, ever — secrets live in Coolify's env store.
+#
+# Keys marked [pivot] are edited when the repo points at a new instance; unmarked
+# keys are structural choices that normally carry over. If a skill ever writes
+# discovered state back here (uuids, observed versions), it goes under a clearly
+# marked machine-managed key — never mixed into the hand-edited ones.
+
+coolify:
+  mcp_server: {{MCP_SERVER}}            # the MCP server name this repo is operated through
+  url: {{COOLIFY_URL}}             # [pivot] the Coolify UI/API base URL — not a secret; the token never lives here
+  version_observed: ""           # [pivot] last confirmed Coolify version; /setup records it
+
+domains:
+  internal_suffix: {{INTERNAL_SUFFIX}}   # [pivot] Tailscale tailnet domain (internal lane)
+  public_suffix: {{PUBLIC_SUFFIX}}       # [pivot] Traefik wildcard domain (public lane); "" = no public lane
+  operator_tailnet: {{OPERATOR_TAILNET}}   # [pivot] the tailnet of the machine this repo is
+                                         # operated FROM — equal to internal_suffix when it is
+                                         # the same tailnet; "" when unknown or not on one
+
+projects:
+  internal: {{PROJECT_INTERNAL}}       # tailnet-only resources
+  public: {{PROJECT_PUBLIC}}           # internet-reachable via Traefik
+  infrastructure: {{PROJECT_INFRA}}    # platform plumbing, not user-facing
+
+environment: {{ENVIRONMENT}}          # the single Coolify environment in every project
+
+canary: {{CANARY}}                   # [pivot] reference internal service; proves the internal
+                                 # lane end to end — do not delete casually
+
+plumbing:
+  tailnet_registrar: {{REGISTRAR}}          # registers labelled containers as Tailscale Services
+  public_dns: {{PUBLIC_DNS}}          # pins the public wildcard A record, every 5 min
+
+policy:
+  backups_default: {{BACKUPS_DEFAULT}}    # [pivot] recommend-but-no (recommend, record the decision) or required
+  write_path: coolify-via-mcp          # Coolify's DB is source of truth; stacks/ is reference
+  commit_branch: {{COMMIT_BRANCH}}                  # no PRs; commit straight to this branch and push

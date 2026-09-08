@@ -1,0 +1,175 @@
+# The skill library as a distributable product: position
+
+Status, 2026-09-08: **the trigger fired; the physical split is done; distribution is
+a scaffolder; the plugin form is still ahead.** The user asked to share this repo so
+others can get it running with one command — the "first real second consumer" moment
+the Trigger section below reserved the migration for. The first attempt pushed the
+whole deployment repo, state and all, to a public GitHub repo; that forced the
+portable/instance split this file had planned to be *physical* immediately:
+
+- **`library/` is the distributable and the only thing ever pushed.** It is the npm
+  package (`package.json`, `bin/create.js`, `template/`), the five skills, and the
+  portable docs — `platform.md`, `internal-services.md`, `tailnet-access.md`,
+  `changing-a-resource.md`, plus the position papers. `npx coolify-devops <dir>` — or
+  `npx github:KasperHonore/coolify-devops <dir>` — scaffolds a deployment repo from it:
+  skills copied, and everything else — `CLAUDE.md`, `instance.yaml`, every runbook in
+  `docs/`, the two state docs — rendered from the interview so the repo reads as the
+  consumer's own instance; `.mcp.json` reads the token from the shell. `/setup` fills the skeletons. The GitHub repo is the `library/` subtree
+  of the author's deployment repo, published by `npm run publish-library`.
+- **Everything else stays in the deployment repo**: `instance.yaml`, `stacks/`, the
+  two state docs. The author's deployment repo's `.claude/skills/<name>` are symlinks into
+  `library/skills/`, so a lesson folded into a skill lands in the library directly —
+  the living-runbook loop for the *reference* instance is intact.
+- **What is deliberately not done**: a *scaffolded* repo still gets copies, so its
+  lessons stay local (the hard problem below). The plugin form — skills loaded from
+  the library by reference, invoked as `/coolify-devops:host`, portable docs reached
+  via `${CLAUDE_PLUGIN_ROOT}` — is the fix, and the split now makes it a file move
+  plus path rewrite. The `npx` entry point survives it: the CLI would pin the plugin
+  instead of copying skills.
+
+## The endgame
+
+The unit of sharing becomes the **skill library**, not this repo. Someone receives
+the library, runs a setup skill, and ends with a working deployment repo of their
+own. Two artifacts replace today's one:
+
+- **The library — a Claude Code plugin.** Plugins bundle multiple skills plus shared
+  files at the plugin root, referenced by relative path — which is what lets the
+  portable docs travel with the skills *without* landing inside any single skill's
+  folder (they are shared by all of them; a per-skill home would assign a false
+  owner). Contents: the five skills (`host`, `change-service`, `health`,
+  `grant-access`, `setup`) and the portable halves of today's
+  `internal-services.md`, `tailnet-access.md`, and `infrastructure.md` — docktail's
+  traps, Tailscale semantics, the verification procedures — plus the platform-lore
+  body of `stacks/README.md` (the mount/recreate/verification knowledge
+  `/change-service` depends on, which must not stay behind in a deployment repo).
+  Distributed as a git repo or marketplace entry.
+- **A deployment repo per instance** — everything the library must not contain:
+  `instance.yaml`, `stacks/`, the instance-state docs (current policy model,
+  recorded credential scopes, inventory), and a scaffolded `CLAUDE.md`. Created and
+  populated by the setup skill; accumulates state over the deployment's life.
+
+The portable-vs-instance split that `conventions.md` maintains *logically* today
+becomes *physical* at migration. That split staying clean is what makes the
+migration cheap — which is the standing reason to keep enforcing it now.
+
+**This supersedes, at migration time, the conventions rule that skill-supporting
+facts never move into the skill tree.** That rule's reasoning (shared facts need a
+neutral, discoverable home) is answered by the plugin root, not violated by it.
+
+## The mechanics, verified against the plugin docs (2026-08)
+
+Researched from the official Claude Code plugin documentation
+(code.claude.com/docs/en/plugins.md, plugins-reference.md, plugin-marketplaces.md);
+the load-bearing facts for the migration:
+
+- **Layout**: plugin root holds `.claude-plugin/plugin.json` (only `name` is
+  required), `skills/<name>/SKILL.md` per skill, and shared docs in any plugin-root
+  directory (e.g. `shared-docs/`). Skills reference plugin-level files via
+  `${CLAUDE_PLUGIN_ROOT}/shared-docs/<file>.md` — a substitution available *only* to
+  plugin skills, which is the mechanism that lets the portable docs travel at
+  library level. `${CLAUDE_PROJECT_DIR}` still works from plugin skills, which is
+  how they will keep reading the deployment repo's `instance.yaml` and state docs.
+- **Namespacing**: plugin skills invoke as `/<plugin>:<skill>` and never collide
+  with project skills; a project skill with the same bare name shadows nothing.
+  During a transition both can coexist (`/host` project-local, `/<plugin>:host`
+  from the library) — useful for the migration's trial period, then the project
+  copies are deleted.
+- **Distribution**: a marketplace is a repo with `.claude-plugin/marketplace.json`;
+  sources can be a GitHub repo, a git URL, a **subdirectory of a git repo**
+  (`git-subdir`), or a local path. A deployment repo pins the library for its team
+  via `enabledPlugins` in committed `.claude/settings.json`. Dogfooding before any
+  split: `claude --plugin-dir ./<plugin>` or a file-source marketplace entry —
+  meaning the plugin can be developed *inside this repo* and consumed by it.
+- **Updates**: marketplace installs refresh on `/plugin marketplace update` +
+  `/reload-plugins`; skills-dir installs update by `git pull`. Version comes from
+  `plugin.json`. This is the transport half of the living-runbook problem — the
+  upstream *contribution* half remains ours to design.
+- **Porting cost**: SKILL.md frontmatter is identical for project and plugin
+  skills; converting is a file move plus rewriting `docs/` references to
+  `${CLAUDE_PLUGIN_ROOT}` paths. Invocation names change to the namespaced form.
+
+## Migration map, from the 2026-08-25 audit
+
+A read-only audit classified every section of the shared docs and swept the skills
+for binding leaks. The leaks it found are fixed (registrar naming in `/host` and
+`/health`, instance-state assertions in `/host` and `/grant-access`, the env-var
+name mismatch between the two access docs, and the operator tailnet gaining its
+`domains.operator_tailnet` key). What remains is the split itself:
+
+- **Purely portable, destined for the plugin root**: internal-services.md's trap /
+  verification / repair / failure-signature sections; tailnet-access.md's
+  procedures, group-model judgment, policy-editing discipline, and scope taxonomy;
+  stacks/README.md's entire platform-lore body; infrastructure.md's `run_once`
+  lore, MCP rough edges, token-scoping and deployment-shape judgment.
+- **Purely instance, staying in the deployment repo**: "Where we are today", the
+  recorded credential scopes, the platform table, inventory and volumes tables,
+  housekeeping, known gaps, the stacks file lists — and `CLAUDE.md` as a file,
+  which becomes a setup-skill-scaffolded artifact from a portable template.
+- **Mixed sections split along exactly those lines**; prose that restates
+  `instance.yaml` values gets rewritten to name keys as it moves.
+
+Checklist for the migration itself, beyond moving files:
+
+1. **Re-home every path skills use**: library docs via `${CLAUDE_PLUGIN_ROOT}`,
+   the deployment repo's `instance.yaml`, instance docs, and `stacks/<name>/` via
+   `${CLAUDE_PROJECT_DIR}` — state the convention once, at the top of the library.
+2. **Deduplicate the write-once-ports trap** — it is currently written out three
+   times (internal-services.md, infrastructure.md, CLAUDE.md); one portable copy,
+   the others become pointers, or they drift.
+3. **Worked examples name shapes, not resources** — done 2026-09-08; the runbooks
+   and skills carry no named resource of any instance.
+4. **State the software assumption**: the library assumes docktail and Traefik as
+   the plumbing software. `plumbing.*` keys parameterize resource *names*, not the
+   software — swapping registrars invalidates whole sections, not just bindings.
+5. **The scaffold must guarantee the instance-state write targets** that portable
+   skills write into — tailnet-access's "Where we are today", infrastructure's
+   inventory and volumes tables — exist under those exact names (`/setup` step 6
+   does this; keep it true).
+
+## Open items
+
+- **The deployment repo's `stacks/` lacks reference copies for the plumbing and
+  canary** (`docktail`, `cloudflare-ddns`, `whoami`) — exactly the composes the setup
+  skill needs as seeds, and which would belong in `library/template/` once
+  genericised. Backfilling needs the compose bodies from Coolify; `get_service
+  reveal: true` is currently denied by the session permission classifier, so this
+  waits on a settings-level allow or a human paste. Reconstructing them from
+  memory would betray what `stacks/` is.
+
+## The setup skill
+
+`/setup` is `conventions.md`'s "Pivoting to another instance" procedure turned into
+a skill, plus an interview. It:
+
+1. Interviews for the bindings — tailnet suffix, public domain, project names,
+   policy defaults — and writes `instance.yaml`.
+2. Verifies the MCP answers (`get_version`), then creates the three projects.
+3. Deploys the plumbing if missing (the tailnet registrar with its OAuth
+   credentials, the public-DNS pinner), then the canary, then runs the four
+   internal-services verification steps against it.
+4. Scaffolds the deployment repo: `CLAUDE.md`, `docs/` skeletons for instance
+   state, empty `stacks/`.
+5. Finishes with `/health` as the acceptance test.
+
+What it must hand to the human as prepared steps, never claim to do: pointing the
+harness at the Coolify MCP server (config outside any repo), joining the machine to
+the tailnet, and minting the Tailscale OAuth client (console work) — the same
+prepared-handover discipline `/grant-access` uses.
+
+## The hard problem to solve at migration, not after
+
+**The living-runbook loop breaks across distribution.** Today a lesson is folded
+into the skill in the same commit because everything is one repo. Once the library
+is shared, a lesson learned in a deployment needs an upstream path back to the
+library, or every deployment forks its skills and the library rots. Design the
+contribution path (library as git dependency; lessons land as upstream commits)
+as part of the migration, not as a discovery afterwards.
+
+## Trigger
+
+The first real second consumer — the moment the library is actually handed to
+someone, or a genuine second instance appears. **Fired 2026-09-08** (see the status at
+the top). The physical split and the scaffolder are the v1 answer; the plugin form is
+the next step, gated on the first scaffolded instance actually running `/setup` and
+reporting friction.
