@@ -6,7 +6,7 @@ and nothing else pretends to know it.
 
 | Layer | Holds | Changes when |
 |---|---|---|
-| `CLAUDE.md` | Rules that apply to *every* session — access model, lanes, write path, the traps that bite immediately. Rendered from the library's template + `instance.yaml` | The operating model changes |
+| `AGENTS.md` | Rules that apply to *every* session — access model, lanes, write path, the traps that bite immediately. Rendered from the library's template + `instance.yaml`. Agent-agnostic by name so Codex, Cursor and the rest read it natively; `CLAUDE.md` is the one-line `@AGENTS.md` import that makes Claude Code load the same file | The operating model changes |
 | `.claude/skills/` | Portable procedures: how to host, change, and check things. **No instance bindings hardcoded** — skills name values from `instance.yaml`. Installed and updated with the skills CLI (`npx skills add` / `update`){{#IS_LIBRARY}}; here they are symlinks into `library/skills/`{{/IS_LIBRARY}}. The setup skill additionally carries, in its `assets/` and `scripts/`, the templates and the renderer that produce everything below — the one place portable knowledge lives inside a skill folder, because the skills CLI installs nothing outside one | The *procedure* improves (often right after it failed) |
 | `instance.yaml` | The bindings that would change on a pivot to another Coolify instance: Coolify URL, domains, project names, canary, policy defaults | The instance changes |
 | `docs/` — runbooks | `provisioning.md` (the human checklist before Coolify exists: VM, Tailscale, Coolify, the cloud firewall — rendered from the lane and dashboard answers), `platform.md` (lanes, naming, deployment model, the MCP), `internal-services.md` (docktail, verification, repair), `tailnet-access.md` (people and policy), `changing-a-resource.md` (mounts, recreates, proving a change took), and the position papers. Rendered for this instance from the templates in the setup skill's `assets/docs/`; they carry no state{{#IS_LIBRARY}} — edit them in `library/skills/setup-coolify-devops/assets/docs/` and re-render{{/IS_LIBRARY}}{{^IS_LIBRARY}} — after `npx skills update`, re-render{{/IS_LIBRARY}} | The platform's behaviour changes, or a lesson is learned |
@@ -32,7 +32,7 @@ Rules that follow from the table:
   produced, not on the setup skill's files. A skill that needs a fact not in `docs/`
   gets it added to a runbook template, not to its own folder.
 - **When a skill and a doc disagree, the doc wins — then fix the skill** (also in
-  `CLAUDE.md`). Skills are updated in the same commit as the lesson that earned the
+  `AGENTS.md`). Skills are updated in the same commit as the lesson that earned the
   update.
 - **No secrets anywhere in this repo**, including `instance.yaml`. The MCP token comes
   from the shell.
@@ -44,7 +44,7 @@ Rules that follow from the table:
 - **This repo has no push remote.** Its only remote is `library`, and the only thing
   pushed to it is the `library/` subtree, by `npm run publish-library` (a leak guard,
   then `git subtree split` + push). `git push` with no arguments fails on purpose.
-- **Rendered files are outputs.** `CLAUDE.md` and the runbooks in `docs/` are rendered
+- **Rendered files are outputs.** `AGENTS.md` and the runbooks in `docs/` are rendered
   from `library/skills/setup-coolify-devops/assets/` by `npm run render` in `library/`; an edit to a
   rendered file is lost at the next render and never reaches a consumer's repo.
 {{/IS_LIBRARY}}

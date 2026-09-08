@@ -1,6 +1,6 @@
 # How hosting works on Coolify
 
-The short version and the rules that matter most are in `CLAUDE.md`. This file is the
+The short version and the rules that matter most are in `AGENTS.md`. This file is the
 *why* behind them: the two exposure lanes, naming, the deployment model, and how to
 work when the only way in is the Coolify MCP. Your instance's own state — platform
 versions, inventory, volumes, known gaps — is `docs/infrastructure.md`.
@@ -236,7 +236,7 @@ zero standalone databases.** Consequences worth knowing before you plan work:
 ## Working through MCP: the MCP is the write path, and there is `run_once`
 
 {{#ON_HOST}}Claude Code runs on the Coolify host here, so a shell exists — and it is still not the
-way to change Coolify's state (`CLAUDE.md`, *The MCP is the only way in*: read-only shell
+way to change Coolify's state (`AGENTS.md`, *The MCP is the only way in*: read-only shell
 checks yes, the `tailscale` CLI for node-local Tailscale settings yes, Docker or
 `/data/coolify` mutations never). {{/ON_HOST}}{{^ON_HOST}}There is no exec tool and no SSH from here — Coolify runs on a separate host, reached only
 through the MCP server. {{/ON_HOST}}That makes a whole class of question feel unanswerable: is the file

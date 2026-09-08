@@ -6,6 +6,7 @@
 *
 !.gitignore
 !.mcp.json
+!AGENTS.md
 !CLAUDE.md
 !README.md
 !instance.yaml

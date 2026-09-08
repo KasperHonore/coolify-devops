@@ -59,6 +59,9 @@ folded in the same evening:**
   already deployed on the box; step 4 now starts by looking for existing plumbing and
   putting adopt / upgrade / replace to the user with evidence, instead of deploying a
   second one.
+- The rendered rules file is now **`AGENTS.md`**, with `CLAUDE.md` a one-line
+  `@AGENTS.md` import. The skills CLI installs for many agents; the rules should be
+  readable by all of them without a second copy to drift.
 - The `tailscale` CLI is the one thing the shell may *change*: node-local settings
   (SSH, tags, hostname) are done by the skill when it has the CLI — on the host, or
   over Tailscale SSH from another machine on the tailnet, which is the single
@@ -78,7 +81,7 @@ portable/instance split this file had planned to be *physical* immediately:
   portable docs — `platform.md`, `internal-services.md`, `tailnet-access.md`,
   `changing-a-resource.md`, plus the position papers. `npx coolify-devops <dir>` — or
   `npx github:KasperHonore/coolify-devops <dir>` — scaffolds a deployment repo from it:
-  skills copied, and everything else — `CLAUDE.md`, `instance.yaml`, every runbook in
+  skills copied, and everything else — `AGENTS.md`, `instance.yaml`, every runbook in
   `docs/`, the two state docs — rendered from the interview so the repo reads as the
   consumer's own instance; `.mcp.json` reads the token from the shell. `/setup-coolify-devops` fills the skeletons. The GitHub repo is the `library/` subtree
   of the author's deployment repo, published by `npm run publish-library`.
@@ -112,7 +115,7 @@ own. Two artifacts replace today's one:
   Distributed as a git repo or marketplace entry.
 - **A deployment repo per instance** — everything the library must not contain:
   `instance.yaml`, `stacks/`, the instance-state docs (current policy model,
-  recorded credential scopes, inventory), and a scaffolded `CLAUDE.md`. Created and
+  recorded credential scopes, inventory), and a scaffolded `AGENTS.md`. Created and
   populated by the setup skill; accumulates state over the deployment's life.
 
 The portable-vs-instance split that `conventions.md` maintains *logically* today
@@ -170,7 +173,7 @@ name mismatch between the two access docs, and the operator tailnet gaining its
   lore, MCP rough edges, token-scoping and deployment-shape judgment.
 - **Purely instance, staying in the deployment repo**: "Where we are today", the
   recorded credential scopes, the platform table, inventory and volumes tables,
-  housekeeping, known gaps, the stacks file lists — and `CLAUDE.md` as a file,
+  housekeeping, known gaps, the stacks file lists — and `AGENTS.md` as a file,
   which becomes a setup-skill-scaffolded artifact from a portable template.
 - **Mixed sections split along exactly those lines**; prose that restates
   `instance.yaml` values gets rewritten to name keys as it moves.
@@ -181,7 +184,7 @@ Checklist for the migration itself, beyond moving files:
    the deployment repo's `instance.yaml`, instance docs, and `stacks/<name>/` via
    `${CLAUDE_PROJECT_DIR}` — state the convention once, at the top of the library.
 2. **Deduplicate the write-once-ports trap** — it is currently written out three
-   times (internal-services.md, infrastructure.md, CLAUDE.md); one portable copy,
+   times (internal-services.md, infrastructure.md, AGENTS.md); one portable copy,
    the others become pointers, or they drift.
 3. **Worked examples name shapes, not resources** — done 2026-09-08; the runbooks
    and skills carry no named resource of any instance.
@@ -253,7 +256,7 @@ a skill, plus an interview. It:
 3. Deploys the plumbing if missing (the tailnet registrar with its OAuth
    credentials, the public-DNS pinner), then the canary, then runs the four
    internal-services verification steps against it.
-4. Scaffolds the deployment repo: `CLAUDE.md`, `docs/` skeletons for instance
+4. Scaffolds the deployment repo: `AGENTS.md`, `docs/` skeletons for instance
    state, empty `stacks/`.
 5. Finishes with `/health` as the acceptance test.
 

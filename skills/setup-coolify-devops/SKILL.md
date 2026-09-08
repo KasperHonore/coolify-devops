@@ -17,7 +17,7 @@ Two modes — say which one applies before anything else:
   skills install (`npx skills add KasperHonore/coolify-devops` leaves `.claude/`,
   `.agents/`, `skills-lock.json`). No `instance.yaml` yet. This skill *creates* the
   deployment repo: the interview in step 1, then `scripts/scaffold.js` writes
-  `instance.yaml`, `CLAUDE.md`, `.mcp.json`, the rendered runbooks in `docs/`, the two
+  `instance.yaml`, `AGENTS.md`, `.mcp.json`, the rendered runbooks in `docs/`, the two
   state skeletons, and `stacks/README.md`. Everything this skill and the others read
   from `docs/` comes from that render — the runbook templates travel inside this
   skill's `assets/`, so a consumer's repo never depends on any file outside it.
@@ -68,7 +68,12 @@ done because it was asked for:
    ```
 
    then a new shell, `claude` from the repo, approve the project server when prompted —
-   and `/mcp` showing it connected is the verification. "Never in a file" means never
+   and `/mcp` showing it connected is the verification. **Verify presence, never
+   value**: `[ -n "$COOLIFY_ACCESS_TOKEN" ] && echo set` is the whole check. Never
+   `env | grep`, never `cat` the env file, never `echo` the variable, never read
+   `.bash_history` — a trial session did all three and wrote the live token into its
+   own transcript four times. If the check says unset, the fix is the env file and a
+   new shell, not a look at what is in it. "Never in a file" means never
    in a *tracked* file; a 600-mode file under `~/.config` is the right place, and the
    allow-list `.gitignore` keeps it out even when the repo is the home directory.
    The session will not survive the restart, so say plainly that the next `/setup-coolify-devops`
@@ -202,7 +207,7 @@ token file, shell history or Claude's session data. Passing a directory name cre
 a nested repo *without* the skills in it, which is exactly what happened once; the
 script now refuses that.
 Relay its closing "human steps still ahead" block to the user verbatim — it is the
-prepared-step handover for preconditions 0, 1 and 3. Never hand-edit `CLAUDE.md` or
+prepared-step handover for preconditions 0, 1 and 3. Never hand-edit `AGENTS.md` or
 the runbooks in `docs/`: they are rendered outputs, and
 `node "${CLAUDE_SKILL_DIR}/scripts/scaffold.js" --render` regenerates them from
 `instance.yaml` whenever a binding changes or the skills were updated.
@@ -318,7 +323,7 @@ is hosted before it passes.
 The deployment repo, in this order:
 
 1. `instance.yaml` (step 1's output).
-2. `CLAUDE.md` — this repo's structure with the header facts (tailnets, suffixes,
+2. `AGENTS.md` — this repo's structure with the header facts (tailnets, suffixes,
    project names) rewritten from the interview; the rules and skill list carry
    over unchanged.
 3. `docs/` — the rendered runbooks, plus the two instance-state files:
@@ -332,7 +337,7 @@ The deployment repo, in this order:
 5. `git init` if needed; commit straight to the branch named by
    `policy.commit_branch`.
 
-Pivot mode — instead: rewrite the header facts in `CLAUDE.md` and
+Pivot mode — instead: rewrite the header facts in `AGENTS.md` and
 `docs/infrastructure.md`, prune `stacks/` to what exists on the new instance, and
 grep the repo for the *old* domain suffixes — zero hits outside git history is the
 done condition.
@@ -342,7 +347,7 @@ remains here is filling the two state skeletons: every italic placeholder in
 `docs/infrastructure.md` (platform table from step 2, inventory and credentials from
 steps 4–5) and `docs/tailnet-state.md` (the policy as pasted from the console, the
 registrar's scopes as minted). Done condition: no italic placeholder left in either
-file. `CLAUDE.md` and the runbooks are rendered outputs — never hand-edit them; if a
+file. `AGENTS.md` and the runbooks are rendered outputs — never hand-edit them; if a
 binding changed, fix `instance.yaml` and `--render`.
 
 ## 7. Accept

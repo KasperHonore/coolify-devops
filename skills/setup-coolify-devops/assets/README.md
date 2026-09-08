@@ -5,7 +5,7 @@ Scaffolded by the `/setup-coolify-devops` skill of [coolify-devops](https://gith
 manual and state record for one Coolify instance, driven from Claude Code through the
 Coolify MCP.
 
-- `CLAUDE.md` — the rules every session follows. Start here.
+- `AGENTS.md` — the rules every session follows. Start here.
 - `instance.yaml` — the bindings for this instance (tailnet, domains, project names).
 - `.claude/skills/` — `/setup-coolify-devops`, `/host`, `/change-service`, `/health`, `/grant-access`.
 - `docs/` — platform runbooks and this instance's recorded state. `docs/provisioning.md`
@@ -31,7 +31,7 @@ Then a new shell and `claude` from this directory. When this directory is root's
 on the Coolify host — the usual setup — that is where the Coolify web terminal
 (Servers → Terminal) and Tailscale SSH already land, so there is nothing to `cd` into.
 
-This repo's `.gitignore` is an allow-list: only `CLAUDE.md`, `instance.yaml`, `docs/`,
+This repo's `.gitignore` is an allow-list: only `AGENTS.md`, `instance.yaml`, `docs/`,
 `stacks/`, `.mcp.json`, `README.md` and `skills-lock.json` are tracked. Everything else
 in the directory is ignored on purpose. On the first
 run Claude Code asks you to approve the project MCP server. Then `/health` to look,
@@ -41,9 +41,9 @@ run Claude Code asks you to approve the project MCP server. Then `/health` to lo
 
 ```bash
 npx skills update                                        # pulls the latest skills
-node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render   # re-renders CLAUDE.md and docs/ runbooks
+node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render   # re-renders AGENTS.md and docs/ runbooks
 ```
 
-`CLAUDE.md` and the runbooks in `docs/` are rendered from templates inside the setup
+`AGENTS.md` and the runbooks in `docs/` are rendered from templates inside the setup
 skill; the two state files (`docs/infrastructure.md`, `docs/tailnet-state.md`) and
 `stacks/` are yours and are never touched by a render.

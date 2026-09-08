@@ -1,4 +1,4 @@
-{{#IS_LIBRARY}}<!-- Rendered from library/skills/setup-coolify-devops/assets/CLAUDE.md + instance.yaml by `npm run render`. Edit the template, not this file. -->
+{{#IS_LIBRARY}}<!-- Rendered from library/skills/setup-coolify-devops/assets/AGENTS.md + instance.yaml by `npm run render`. Edit the template, not this file. -->
 
 {{/IS_LIBRARY}}# Coolify hosting
 
@@ -182,7 +182,13 @@ through a fresh-context trial — the protocol is in `docs/conventions.md`.
 
 - Secrets live in Coolify's per-service env store, never in this repo.{{#HAS_MCP_JSON}} The MCP's
 own token comes from the shell (`.mcp.json` reads `COOLIFY_ACCESS_TOKEN`); it is never
-written to a file here.{{/HAS_MCP_JSON}}
+written to a file here.{{/HAS_MCP_JSON}} **Never print a secret into the session**: no
+`env`, no `env | grep`, no `echo $COOLIFY_ACCESS_TOKEN`, no `cat` of `~/.config/*.env`,
+`.bash_history` or any credential file — a session transcript is a file on disk, and a
+value printed once is stored for good. Check presence only:
+`[ -n "$COOLIFY_ACCESS_TOKEN" ] && echo set || echo unset`. The same goes for MCP
+calls: `env_vars list` without `reveal`, and `reveal: true` only with a `key`, only
+when the value itself is what the task needs.
 - **Coolify is the write path.** Compose definitions and env live in its database, not in
 this repo. `stacks/<name>/` holds reference copies so they are readable in git, but nothing
 there is applied and they are not runnable as plain Compose. Change the resource in
@@ -211,7 +217,7 @@ this file plus the runbooks in `docs/` are rendered from them by `npm run render
 edit the source, then render. Nothing instance-specific ever goes under `library/` —
 the rules are in `docs/conventions.md`.{{/IS_LIBRARY}}{{^IS_LIBRARY}} If the repo has
 a remote, push after every commit.
-- **`CLAUDE.md` and the runbooks in `docs/` are rendered outputs.** They come from the
+- **`AGENTS.md` and the runbooks in `docs/` are rendered outputs.** They come from the
 templates bundled in the setup skill, rendered from `instance.yaml`. Do not hand-edit
 them; change `instance.yaml` (or update the skills with `npx skills update`) and run
 `node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render`. The two state files,

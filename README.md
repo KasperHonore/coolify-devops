@@ -23,7 +23,7 @@ Then run `/setup-coolify-devops`. It interviews you — where Claude Code runs (
 tailnet domain and IPs itself), where the server runs, whether you will host
 public-facing apps (and if so the domain: your own or a free DuckDNS one), who may
 reach the Coolify dashboard — and scaffolds the deployment repo around the
-skills: `CLAUDE.md`, `instance.yaml`, `.mcp.json` (reads the Coolify token from your
+skills: `AGENTS.md`, `instance.yaml`, `.mcp.json` (reads the Coolify token from your
 shell environment — kept in a root-only file in your home, never in the repo), and the runbooks in `docs/` rendered for *your* instance. Then it
 hands you the human steps it cannot do — `docs/provisioning.md` covers the VM, Tailscale,
 the Coolify install and the cloud firewall — verifies each one, creates the projects,
@@ -47,7 +47,8 @@ files below are ever tracked. Everything the skills read at run time lives there
 
 | Path | What it is |
 |---|---|
-| `CLAUDE.md` | The operating rules every session reads: lanes, naming, the write path, the traps. Rendered |
+| `AGENTS.md` | The operating rules every agent session reads: lanes, naming, the write path, the traps. Rendered |
+| `CLAUDE.md` | One line, `@AGENTS.md`, so Claude Code imports the same rules; other agents read `AGENTS.md` directly |
 | `instance.yaml` | Your bindings; skills name its keys instead of hardcoding values |
 | `docs/` | Runbooks rendered for your instance — `provisioning.md`, `platform.md`, `internal-services.md`, `tailnet-access.md`, `changing-a-resource.md` — plus two hand-maintained state files, `infrastructure.md` and `tailnet-state.md` |
 | `stacks/` | Reference copies of what is deployed. Coolify is the write path; nothing here is applied |
@@ -60,7 +61,7 @@ the skill and update with it:
 
 ```bash
 npx skills update                                        # new skills, new templates
-node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render   # re-render CLAUDE.md and docs/ runbooks
+node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render   # re-render AGENTS.md and docs/ runbooks
 ```
 
 `update` refreshes the skills already installed; a skill that was *renamed* upstream
@@ -89,7 +90,7 @@ reference `instance.yaml` and `docs/` and are useless.
 ## Maintaining this repo
 
 This repo is the `library/` subtree of the author's own deployment repo, which consumes
-it exactly as a consumer does: `CLAUDE.md` and `docs/` there are rendered from
+it exactly as a consumer does: `AGENTS.md` and `docs/` there are rendered from
 `skills/setup-coolify-devops/assets/` by `npm run render`, so what every consumer receives and what the
 author runs on cannot drift. `npm test` scaffolds two sample repos into a temp dir and
 fails on any unrendered template tag. Design notes and the record of decisions:

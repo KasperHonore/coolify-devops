@@ -32,7 +32,7 @@
 //   --backups=X             recommend-but-no | required (default recommend-but-no)
 //   --branch=X              commit branch (default main)
 //   --no-git                skip git init + initial commit
-//   --render                re-render ./CLAUDE.md and the runbooks in ./docs/ from ./instance.yaml
+//   --render                re-render ./AGENTS.md and the runbooks in ./docs/ from ./instance.yaml
 //                           (after `npx skills update`, or after editing instance.yaml); never
 //                           touches the state files docs/infrastructure.md and docs/tailnet-state.md
 //   --help
@@ -186,6 +186,11 @@ function has(cmd) {
   return !r.error && r.status === 0;
 }
 
+// The operating rules are rendered to AGENTS.md — the agent-agnostic convention every
+// coding agent reads — and CLAUDE.md is a one-line import of it, so Claude Code loads
+// the same file without a second copy to drift.
+const CLAUDE_STUB = '@AGENTS.md\n';
+
 // The runbooks in assets/docs/ are templates: rendered with the instance's bindings so
 // a deployment repo reads as its own, never as the library author's.
 const RUNBOOK_BANNER = '<!-- Rendered from library/skills/setup-coolify-devops/assets/docs/%s by `npm run render`. Edit the source, not this file. -->\n\n';
@@ -198,18 +203,19 @@ function renderRunbooks(targetDocs, vars) {
   }
 }
 
-// ---------- maintainer mode: re-render this repo's CLAUDE.md and runbooks ----------
+// ---------- maintainer mode: re-render this repo's AGENTS.md and runbooks ----------
 
 function renderMode() {
   const cwd = process.cwd();
   const inst = readInstanceYaml(path.join(cwd, 'instance.yaml'));
-  const tpl = fs.readFileSync(path.join(TEMPLATE_DIR, 'CLAUDE.md'), 'utf8');
+  const tpl = fs.readFileSync(path.join(TEMPLATE_DIR, 'AGENTS.md'), 'utf8');
   // IS_LIBRARY: the library author's own deployment repo, which carries library/ and
   // gets the "rendered from" banners; a consumer's repo does not.
   const vars = { ...varsFromInstance(inst), HAS_MCP_JSON: fs.existsSync(path.join(cwd, '.mcp.json')), IS_LIBRARY: fs.existsSync(path.join(cwd, 'library', 'skills')) };
-  fs.writeFileSync(path.join(cwd, 'CLAUDE.md'), render(tpl, vars));
+  fs.writeFileSync(path.join(cwd, 'AGENTS.md'), render(tpl, vars));
+  fs.writeFileSync(path.join(cwd, 'CLAUDE.md'), CLAUDE_STUB);
   renderRunbooks(path.join(cwd, 'docs'), vars);
-  console.log(`Rendered CLAUDE.md and the runbooks in docs/ from instance.yaml${vars.IS_LIBRARY ? ' (library author mode)' : ''}`);
+  console.log(`Rendered AGENTS.md and the runbooks in docs/ from instance.yaml${vars.IS_LIBRARY ? ' (library author mode)' : ''}`);
 }
 
 // ---------- scaffold ----------
@@ -230,7 +236,7 @@ async function main() {
   // The target may be a home directory full of other things; that is fine. What is
   // not fine is overwriting a deployment repo that already exists there.
   if (target === '/') { console.error('Refusing to scaffold /'); process.exit(1); }
-  const clobber = ['CLAUDE.md', 'instance.yaml', 'docs', 'stacks'].filter(f => fs.existsSync(path.join(target, f)));
+  const clobber = ['AGENTS.md', 'CLAUDE.md', 'instance.yaml', 'docs', 'stacks'].filter(f => fs.existsSync(path.join(target, f)));
   if (clobber.length) {
     console.error(`Refusing: ${target} already holds ${clobber.join(', ')}. To re-render an existing repo from its instance.yaml, run with --render.`);
     process.exit(1);
@@ -286,7 +292,8 @@ async function main() {
     fs.mkdirSync(path.dirname(p), { recursive: true });
     fs.writeFileSync(p, content);
   };
-  write('CLAUDE.md', render(fs.readFileSync(path.join(TEMPLATE_DIR, 'CLAUDE.md'), 'utf8'), vars));
+  write('AGENTS.md', render(fs.readFileSync(path.join(TEMPLATE_DIR, 'AGENTS.md'), 'utf8'), vars));
+  write('CLAUDE.md', CLAUDE_STUB);
   write('instance.yaml', render(fs.readFileSync(path.join(TEMPLATE_DIR, 'instance.yaml'), 'utf8'), yamlVars));
   write('.mcp.json', fs.readFileSync(path.join(TEMPLATE_DIR, 'mcp.json'), 'utf8'));
   write('.gitignore', fs.readFileSync(path.join(TEMPLATE_DIR, '_gitignore'), 'utf8'));
@@ -307,7 +314,8 @@ async function main() {
   const rel = path.relative(process.cwd(), target) || '.';
   console.log(`
 Scaffolded ${rel}/
-  CLAUDE.md          operating rules for every Claude Code session
+  AGENTS.md          operating rules for every agent session (Claude Code, Codex, Cursor, ...)
+  CLAUDE.md          one line, @AGENTS.md — Claude Code imports the same rules
   instance.yaml      your bindings${internal ? '' : ' (blank — /setup-coolify-devops fills them)'}
   .mcp.json          Coolify MCP wiring; reads COOLIFY_BASE_URL and COOLIFY_ACCESS_TOKEN from your shell
   docs/              runbooks and state files, rendered for your instance
