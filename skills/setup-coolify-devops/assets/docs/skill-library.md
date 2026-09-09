@@ -345,10 +345,16 @@ What the transcripts taught, all folded in this pass:
   hostability contract `/ship` checks before writing it.
 - **Three application facts the library had never met**: `custom_labels` is base64
   (the internal lane on an application is now proven, not "unproven"); Railpack
-  produces a bare-`bash` restart loop for a package with only a console-script
-  entrypoint, and the fix is a Dockerfile, not more Railpack settings; Coolify's
+  produces a bare-`bash` restart loop for a Python repo with only a `pyproject.toml`
+  — a follow-up read of its provider and of the `railpack prepare` output Coolify
+  stores showed it installs only from a lock file or `requirements.txt` and takes
+  the start command from a `Procfile` or `main.py`, and that Coolify's
+  `install_command` cannot rescue it because the deploy stage drops the packages;
+  a lock file plus `Procfile` would have worked without a Dockerfile — so the
+  hostability field is "how it builds", not "has a Dockerfile"; Coolify's
   application healthcheck execs `curl`/`wget` inside the container, so a `-slim`
-  image rolls a healthy app back. All three needed code changes, and they went
+  image from a repo's own Dockerfile rolls a healthy app back (Railpack images get
+  both packages from Coolify). All three needed code changes, and they went
   upstream as PRs from the server session — the wrong side of the split, needing a
   GitHub login the server should not hold. The rule is now that this side never
   edits a product repo: the failing deployment-log line goes back as a findings

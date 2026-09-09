@@ -70,8 +70,10 @@ session**; `/ship` also writes it into the "How it stays running" section of the
 only. It carries: the repo URL and branch, the recommended lane, the port the
 container listens on, the env var *names* (never values — those go into Coolify's
 env store by hand), the paths that must persist, the healthcheck path, and the two
-hostability facts Coolify will test — a `Dockerfile` at the root whose image carries
-`curl` or `wget`, and a server that binds `0.0.0.0` or reads `HOST`/`PORT`. That is
+hostability facts Coolify will test — how it builds (a `Dockerfile` at the root
+whose image carries `curl` or `wget`, or for Railpack a lock file or
+`requirements.txt` plus a `Procfile`), and a server that binds `0.0.0.0` or reads
+`HOST`/`PORT`. That is
 the deployability report: do not spawn the research subagent, and do not read the
 code. A request with a field missing goes back for that field. No request at all —
 a `/ship` predating the hand-off, or a repo no kit built — means handing the person
@@ -86,7 +88,7 @@ Port:          <port the container listens on>
 Env vars:      <names only>
 Persist:       <paths that must survive a restart | none>
 Healthcheck:   <path>
-Dockerfile:    at root, image has curl or wget | none yet
+Build:         Dockerfile at root, image has curl or wget | uv.lock or requirements.txt + Procfile (Railpack) | neither yet
 Bind:          0.0.0.0 | reads HOST and PORT | 127.0.0.1 (not hostable yet)
 ```
 
@@ -174,16 +176,22 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
   degrades to a manual redeploy per release, which goes in the address block (step 7)
   rather than being discovered at the second release.
 - **Build pack**: a `Dockerfile` in the repo for anything long-lived (full control,
-  reproducible); Nixpacks/Railpack only for quick zero-config starts. Railpack's
-  failure signature: a package whose only entrypoint is a console script (a Python
-  `pyproject` with no obvious `app.py`) gets **no start command** — the container's
-  entrypoint is a bare `/bin/bash`, exit 0, no logs, restart loop — and setting
-  `install_command`/`start_command` did not rescue it (the install landed outside the
-  runtime environment: `ModuleNotFoundError`). Do not iterate on Railpack, and do not
-  write the Dockerfile: relay it (step 7). **The image must carry `curl` or `wget`**:
+  reproducible); Nixpacks/Railpack only for quick zero-config starts. What Railpack
+  actually needs from a Python repo (read from its 0.23 provider after a trial): a
+  **lock file or `requirements.txt`** — a bare `pyproject.toml` passes detection but
+  matches no install branch, so *nothing is installed* — and a **`Procfile` or a root
+  `main.py`/`app.py`** for the start command. Missing both, the build "finishes" with
+  an empty install step and no start command: the container's entrypoint is a bare
+  `/bin/bash`, exit 0, no logs, restart loop. Coolify's `install_command` and
+  `start_command` do **not** rescue it: the install runs, but Railpack's deploy stage
+  copies the interpreter layer from *before* the install, so the packages never reach
+  the runtime image (`ModuleNotFoundError` at start). Do not iterate on Railpack, and
+  do not write the fix: relay it (step 7) — the repo needs a lock file plus Procfile,
+  or a Dockerfile. **A repo's own Dockerfile image must carry `curl` or `wget`**:
   Coolify's application healthcheck execs one of them inside the container, so on a
   `-slim` image a healthy app is rolled back as unhealthy with `curl: not found` in
-  the deployment log — again a finding for the builder, not a fix from here.
+  the deployment log — a finding for the builder, not a fix from here. Railpack images
+  are exempt: Coolify adds both packages to them.
 - **Code that will not host is relayed, never fixed here.** A bind on `127.0.0.1`, no
   start command, a missing `curl`: stop, send the findings block (step 7) quoting the
   exact deployment-log line, and wait for the push — Coolify redeploys on it. Three
@@ -362,6 +370,6 @@ on — a "no" is a decision, not an open item.
    ```
    Not hosted yet — coolify-devops at <Coolify URL>
    Finding:   <one line, quoting the deployment log>
-   Needs:     <the request field it violates: Dockerfile with curl | bind 0.0.0.0 or HOST/PORT | start command | …>
+   Needs:     <the request field it violates: Build (Dockerfile with curl, or lock file + Procfile) | Bind 0.0.0.0 or HOST/PORT | …>
    Then:      push to <branch>; Coolify redeploys and /host verifies
    ```
