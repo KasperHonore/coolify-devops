@@ -53,7 +53,7 @@ never writes into theirs, and nothing here reads their files except the masterpl
 
 ## 2. Research the upstream before writing anything
 
-**AI Build Kit: the hosting request is the report.** Read the operations section of
+**AI Build Kit: the hosting request is the report.** Read the "How it stays running" section of
 `masterplan.md`, fetched raw at the branch to be deployed. Their `/ship` writes a
 hosting request there with, at minimum: the repo URL and branch, the recommended
 lane, the port the container listens on, the env var *names* it needs (never values —
@@ -269,7 +269,7 @@ on — a "no" is a decision, not an open item.
    tailnet sees the new service immediately.
 5. Commit straight to `main`.
 6. **AI Build Kit: hand back the address block.** Print it verbatim for the builder
-   to paste into the operations section of their `masterplan.md` (their `/sync`
+   to paste into the "How it stays running" section of their `masterplan.md` (their `/sync`
    keeps it current; this repo never writes into theirs):
 
    ```

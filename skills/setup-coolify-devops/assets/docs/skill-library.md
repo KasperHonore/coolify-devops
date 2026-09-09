@@ -11,11 +11,11 @@ both install routes.** Two decisions, both reversing or sharpening what stands b
   settled in detail: *`/ship` decides whether and what goes live; `/host` decides
   where and how it runs; the address is the only thing that crosses.* `/host` now
   recognises such a project (`masterplan.md` + `AGENTS.md` + `CHANGELOG.md`), reads
-  the hosting request `/ship` writes into the masterplan's operations section instead
+  the hosting request `/ship` writes into the masterplan's "How it stays running" section instead
   of researching, deploys from the git source with the GitHub App so their preview
   address and push-to-deploy exist, and hands back an address block for the builder
   to paste. Their fit-check question "will anyone outside the team rely on it" *is*
-  our lane question. What is still theirs to add: `/ship` writing the request, and a
+  our lane question. What is still theirs to add, proposed as [ai-build-kit#32](https://github.com/gwpicard/ai-build-kit/issues/32): `/ship` writing the request, and a
   mention in their README and `/ship` step 4. What was decided not to do: `/ship`
   calling the Coolify MCP from the laptop. A human between "ready" and "live", with a
   session on each machine, is the safety property both kits are built around; our
