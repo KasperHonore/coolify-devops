@@ -128,6 +128,21 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 Every service should read `ports=['tcp:443']`. Anything else is broken, however healthy
 it looks elsewhere.
 
+The same read through `run_once` in docktail's own container, each command under the
+255-character cap (the image has `wget`, `sed` and `grep`; no `curl`, no `python`).
+The token lands in a file inside the container and only the filtered line comes back:
+
+```
+sh -c 'wget -qO- --post-data="client_id=$TAILSCALE_OAUTH_CLIENT_ID&client_secret=$TAILSCALE_OAUTH_CLIENT_SECRET" https://api.tailscale.com/api/v2/oauth/token > /tmp/tok.json'
+sh -c 'T=$(sed -n "s/.*\"access_token\":\"\([^\"]*\)\".*/\1/p" /tmp/tok.json); wget -qO- --header="Authorization: Bearer $T" https://api.tailscale.com/api/v2/tailnet/-/services > /tmp/svcs.json'
+sh -c 'grep -o "svc:<name>[^}]*" /tmp/svcs.json'
+```
+
+Step 3 below is the second command again with `/services/svc:<name>/devices` as the
+URL and no redirect; finish with `rm -f /tmp/tok.json /tmp/svcs.json`. Verified
+2026-09-09. A session's permission rules may still refuse the first command for
+naming the secret's variable — then see *If steps 2–3 are out of reach*.
+
 **3. The host is approved and ready:**
 
 ```bash
@@ -171,6 +186,7 @@ read remains the only place the truth is visible.
 | Hostname does not resolve or connect, but docktail logs look clean and report `failed=0` | Same thing. docktail short-circuits at `debug` level and looks like success at `info`. |
 | Service missing from the admin console entirely | Labels not picked up, or the container is not running. Check docktail found it (step 1). |
 | Host stuck at `Pending approval` | ACL has no matching `autoApprovers.services` entry. Approve by hand, then fix the ACL. |
+| docktail logs: `ERR Failed to add service error="...your Tailscale node is not tagged..."`, with working credentials and a correct ACL | The **host's own node** must advertise the tag `autoApprovers` keys off — `tagOwners` only says who may hold it. From the host: `tailscale up --advertise-tags=tag:server --force-reauth` plus the non-default flags it tells you to re-specify, then approve the login URL (`docs/provisioning.md` §2). Node-local, so the skill does it; the URL is the human's part. Tagging also clears key expiry. |
 | Everything green, browser still fails | Not a docktail problem. Check the container itself. |
 
 To see the stale port list from docktail's side, set `LOG_LEVEL: debug` on docktail —

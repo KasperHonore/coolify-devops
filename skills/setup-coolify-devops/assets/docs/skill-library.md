@@ -308,6 +308,50 @@ deliverable (`conventions.md`, *Trialing a skill*). Items marked *unverified* in
 `provisioning.md` — the `github` dashboard mode in particular, including the one-time
 GitHub App creation through the allow-listed port — are what that trial settles.
 
+## 2026-09-09, third pass: the setup completed, and the first private repo
+
+Two more trials on the same fresh Hetzner box, by the same non-author, transcripts
+read back afterwards rather than a written friction log. `/setup-coolify-devops` was
+run to completion (day one had ended with the registrar deployed but credential-less),
+then `/host` took a private FastAPI repo from the team's GitHub org to the tailnet.
+What the transcripts taught, all folded in this pass:
+
+- **The setup skill had the tailnet steps in the wrong order and one missing.** The
+  OAuth client's tag dropdown offers only tags already in `tagOwners`, so the policy
+  paste has to precede the credential mint; the skill said "in the same breath". And
+  the host node itself must advertise `tag:server` — Tailscale Services can only be
+  advertised by a tagged node — which nothing in the library said; the registrar held
+  perfect credentials and failed every add with *node is not tagged*. That is a
+  node-local `tailscale up`, the skill's half, with the login URL as the human's.
+  Tagging clears key expiry as a side effect, which retires a console step.
+- **A masked env var can be empty.** `env_vars list` shows `***` for an empty value.
+  The session read the registrar's "credentials not configured" as a recreate
+  problem and recreated twice; the values had never been pasted. A presence check
+  inside the container (`run_once`, `[ -n "$VAR" ]`) distinguishes the two, and the
+  session's own note blaming `deploy` was corrected before it entered the skill.
+- **`/host` did not look before asking.** The user had already created the
+  application from the GitHub App in Coolify's UI — public sslip.io FQDN, Railpack,
+  `<repo>:<branch>-<uuid>` name — and the skill asked six research questions instead
+  of one `list_applications`. It now looks first and adopts.
+- **A private repo needs `gh`, not questions.** The GitHub App lists repos but reads
+  no files; once `gh` was logged in (a separate session installed it, past a dead
+  IPv6 route) every question was answered from the code in a minute. The skill now
+  hands over `gh auth login` as a prepared step and reads the clone.
+- **Three application facts the library had never met**: `custom_labels` is base64
+  (the internal lane on an application is now proven, not "unproven"); Railpack
+  produces a bare-`bash` restart loop for a package with only a console-script
+  entrypoint, and the fix is a Dockerfile, not more Railpack settings; Coolify's
+  application healthcheck execs `curl`/`wget` inside the container, so a `-slim`
+  image rolls a healthy app back. All three needed PRs to the product repo, merged on
+  the owner's go-ahead — the one way this repo writes into theirs, now stated.
+- **Waiting.** A scheduled wakeup set to catch a 60 s reconcile outlived its session,
+  fired into the next one after `/clear`, and re-did finished work as a spurious
+  finding and commit. Waiting is bounded polling in tool calls; the rule is in the
+  rendered `AGENTS.md`.
+
+The rough-edges table in `platform.md` grew nine rows from these two runs; the
+application path is no longer the unproven one.
+
 ## Open items
 
 - ~~The deployment repo's `stacks/` lacks reference copies for the plumbing and

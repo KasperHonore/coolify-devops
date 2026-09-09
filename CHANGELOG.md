@@ -5,6 +5,25 @@ a GitHub release for each, with this entry as its notes and the Agent Skills dis
 index plus one artifact per skill attached. A version is never re-released with
 different skill content; CI and the publish script both refuse it.
 
+## 0.4.0 — 2026-09-09
+
+- Lessons from two more trials on a fresh box: the tailnet policy paste comes before
+  the OAuth client (its tag dropdown only offers existing tags), and the Coolify host's
+  own node must advertise `tag:server` or the registrar fails every service add — a
+  node-local step the setup skill now runs and verifies, which also retires the
+  disable-key-expiry console step. A masked env var can be empty; the skill proves
+  presence inside the container before blaming a recreate.
+- `/host` looks for an existing resource before asking anything, adopts one created
+  from Coolify's UI (clears its public sslip.io FQDN, renames it), and for a private
+  repo hands over `gh auth login` and reads the clone instead of asking six
+  questions. The git-source application path on the internal lane is proven:
+  `custom_labels` is base64, Railpack's bare-`bash` restart loop means "write the
+  Dockerfile", the image needs `curl` for Coolify's healthcheck, a webhook deploy
+  is watched rather than duplicated. Hosting fixes to someone else's repo go as PRs
+  the owner merges.
+- Waiting is bounded polling in tool calls, never a scheduled wakeup (one outlived
+  its session). Nine new rows in the MCP rough-edges table.
+
 ## 0.3.0 — 2026-09-08
 
 - The library is the hosting companion to [AI Build Kit](https://github.com/gwpicard/ai-build-kit).

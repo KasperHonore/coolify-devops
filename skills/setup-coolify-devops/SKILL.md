@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run inside the directory that will become the deployment repo, on a machine with the Coolify MCP configured and Node 18+ for the bundled scaffolder. Needs network access to the Coolify API and, optionally, the Tailscale and Hetzner APIs.
 metadata:
   author: KasperHonore
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # Set up an instance
@@ -112,6 +112,19 @@ done because it was asked for:
      that date, which is a console step to hand over (Machines → … → Disable key
      expiry) and to re-check afterwards. (A trial ran `tailscale status`, saw it up,
      and treated all of this as done; SSH was on by luck, expiry was not disabled.)
+     **And `tailscale status --json | jq .Self.Tags` must list `tag:server`.** Tailscale
+     Services can only be advertised by a tagged node: the registrar can hold perfect
+     credentials and a correct policy and still fail every service add with *"your
+     Tailscale node is not tagged"* (a second trial lost the canary to this).
+     `tagOwners` only says who *may* hold the tag; nothing puts it on the host by
+     itself. The tag must exist in the policy first (precondition 3 — which is why the
+     policy paste comes before everything else there), then run `tailscale up
+     --advertise-tags=tag:server --force-reauth`; if it refuses because other
+     non-default settings exist, it prints the exact command with them re-specified
+     (`--hostname=<current> --ssh`) — run that, hand the human the login URL it
+     prints, and poll `.Self.Tags` in tool calls until it shows. Tagging also clears
+     key expiry (a tagged device has no human owner to expire) — re-read
+     `.Self.KeyExpiry`; `null` afterwards retires the console step above.
      Only the console-side items (key expiry, tailnet name, policy, OAuth client) are
      handed over.
    - **On the same tailnet, not the host**: first verify Tailscale SSH works —
@@ -140,13 +153,16 @@ done because it was asked for:
      the human step as short as it can be: link, two scopes, a tag, two values pasted
      into a Coolify page that already exists (step 4 creates it first).
    - **The secret is shown once**, on the *Credential created* page, and never again.
-   - **Hand over the policy edit in the same breath**, as an exact block to paste
-     into Access controls, not a description — the `tagOwners` and
+   - **Hand over the policy edit first — before the client is minted** — as an exact
+     block to paste into Access controls, not a description: the `tagOwners` and
      `autoApprovers.services` entries for the tag the OAuth client is created with
-     (`docs/tailnet-access.md`, *A model that grows*, has the shape). Without it every
-     Service sits at *Pending approval*, and a trial only surfaced this after the
-     registrar detour, four questions deep. The skill holds no credential with
-     `policy_file` scope, so it cannot apply this itself; say so once, up front.
+     (`docs/tailnet-access.md`, *A model that grows*, has the shape). The order is
+     forced: the credential form's tag dropdown offers only tags already in
+     `tagOwners`, so a client cannot be tagged `tag:server` until the policy holding
+     it is saved (a trial had to back out of the form). Without the policy every
+     Service also sits at *Pending approval*, which an earlier trial only surfaced
+     after the registrar detour, four questions deep. The skill holds no credential
+     with `policy_file` scope, so it cannot apply this itself; say so once, up front.
    - **The secret never enters this session.** Do not offer "paste the ID and secret
      here" — it would land in the transcript, and every `env_vars create` call carrying
      it would too. The prepared step is: the human copies both values straight from
@@ -361,6 +377,24 @@ Deploy into `projects.infrastructure`:
   masked, both present). Then start it, then `get_service` until `running:healthy`,
   then read its logs for the authentication line. A registrar left in "created, not
   deployed" looks done in the project view and is not (a trial ended that way).
+  `get_service`'s `status` has sat on `exited` for minutes while the container was
+  `Up (healthy)` — cross-check with the logs, or on the host with a read-only
+  `docker ps`, before acting on either the field or the human.
+- **A key present is not a value present.** `env_vars list` masks an empty value as
+  `***` exactly like a real one. Once the human says both values are pasted, prove it
+  inside the container — `run_once` `sh -c '[ -n "$TAILSCALE_OAUTH_CLIENT_ID" ] &&
+  echo id_set || echo id_unset'`, and the same for `_SECRET` — never by revealing
+  them. `id_unset` after a genuine recreate means nothing was saved (a trial's case:
+  the form had been clicked through empty) — hand the paste step back, do not
+  redeploy again. When the values are there and a running container still lacks
+  them, recreate it: `service` `stop_application`, then `start_application` with
+  `force: true` (`docs/changing-a-resource.md`); a plain `deploy` may keep the old
+  container. The logs settle it either way: `Configuration loaded
+  api_sync_method=oauth` against `credentials are not configured`.
+- **A first reconcile that reports *node is not tagged*** is precondition 2's tag
+  check, not a registrar problem — fix it there, then wait for the next 60 s
+  reconcile by re-reading the logs in tool calls, never by scheduling a wakeup (one
+  outlived its session, fired into the next, and re-did finished work).
 - **The public-DNS pinner** (`plumbing.public_dns`) — only if a public lane was
   chosen; the token goes in its env store. Which pinner depends on
   `plumbing.public_dns_provider`: a Cloudflare DDNS updater holding a zone-scoped
@@ -374,8 +408,10 @@ into the infrastructure project and with no docktail labels of their own.
 ## 5. Canary
 
 Deploy the canary (`canary`, default whoami) to the internal lane with the full
-label set from `docs/internal-services.md`, then run **all four verification
-steps** against it — registrar logs showing `key=svc:<name>:443`, the
+label set from `docs/internal-services.md` — `service create` needs `server_uuid`
+(`list_servers`) alongside the project and environment uuids, and does not deploy;
+`deploy` it, then poll `get_service` and the registrar's logs in tool calls. Then
+run **all four verification steps** against it — registrar logs showing `key=svc:<name>:443`, the
 control-plane definition at `tcp:443`, `/devices` approved and ready, and a human
 loading `https://<canary>.<domains.internal_suffix>` in a browser. The canary
 existing and answering is what proves the internal lane end to end; nothing else

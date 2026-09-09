@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops (instance.yaml and docs/ present) with the Coolify MCP configured. Needs network access to the Coolify API and to upstream project documentation.
 metadata:
   author: KasperHonore
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # Host a new resource
@@ -32,10 +32,19 @@ always an application from the git source (step 3a), and the run ends with an
 address block for the builder to paste back (step 7). The split, so neither kit
 oversteps: their `/ship` decides *whether* and *what* goes live; this skill decides
 *where* and *how* it runs; the address is the only thing that crosses. This repo
-never writes into theirs, and nothing here reads their files except the masterplan.
+never writes into their files — a hosting fix travels as a PR they merge (step 3a) —
+and nothing here reads them except the masterplan, unless it carries no hosting
+request, in which case the code is the report (step 2).
 
 ## 1. Decide lane and name
 
+- **Look for it first.** `list_applications` and `list_services` across every project:
+  the resource may already exist. Creating it from Coolify's UI (the GitHub App's
+  *Sources* flow does this in two clicks) leaves an application named
+  `<repo>:<branch>-<uuid>`, on Railpack, with an auto-assigned **public**
+  `http://<uuid>.<ip>.sslip.io` FQDN. Adopt it rather than create a second: rename to
+  the plain name, clear the FQDN for the internal lane, and carry on from step 2. A
+  trial asked six research questions that one `list_applications` would have answered.
 - **Lane: if the user stated it, that decides it. If not, always ask** — one question,
   "internal (tailnet-only) or public (on the internet)?" — recommending internal unless
   an external party, inbound webhook, or OAuth callback genuinely requires public
@@ -65,6 +74,15 @@ rather than resolving it silently. A masterplan with no hosting request is a pro
 whose `/ship` predates the hand-off: fall back to the research below, and tell the
 builder the block is missing so their next `/ship` writes it.
 
+**A private repo needs `gh` before any research.** `github_apps` `list_repos` proves
+Coolify can pull it but reads no files. Check `gh auth status`. If `gh` is missing,
+install it from GitHub's apt repo — forcing IPv4 (`wget -4`, `apt-get -o
+Acquire::ForceIPv4=true`) when the fetch hangs; a Hetzner host's IPv6 route did. If it
+is not logged in, hand the human `gh auth login` as a prepared step (the browser
+device flow; the token lands in gh's own config and nothing enters the session). Then
+`gh repo clone <repo> -- --depth 1` into the scratchpad and answer the report from
+the code. Do not ask the user what the code can tell you.
+
 **Do not skip to compose authoring on the strength of a README badge.** For anything
 beyond a single obvious image, spawn a web-capable research subagent to read the
 project's official docs and return a deployability report — delegating keeps the doc
@@ -92,6 +110,11 @@ The subagent answers, from the official installation/self-hosting docs (not blog
    choosing the shape.
 8. **Gotchas**: migration steps, self-hosting license limits, known reverse-proxy or
    HTTPS issues.
+9. **For a git-source application, from the code**: the bind address — it must be
+   `0.0.0.0`, or read `HOST`/`PORT`, which Coolify injects (`HOST=0.0.0.0`,
+   `PORT=<port>`); a hardcoded `127.0.0.1` is unreachable from every other container,
+   docktail's proxy included. The exact start command, and whether a `Dockerfile`
+   exists.
 
 Everything version-sensitive is validated **against the tag being pinned, not `main`**
 (`raw.githubusercontent.com/<org>/<repo>/<tag>/<path>`).
@@ -140,7 +163,18 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
   degrades to a manual redeploy per release, which goes in the address block (step 7)
   rather than being discovered at the second release.
 - **Build pack**: a `Dockerfile` in the repo for anything long-lived (full control,
-  reproducible); Nixpacks/Railpack only for quick zero-config starts.
+  reproducible); Nixpacks/Railpack only for quick zero-config starts. Railpack's
+  failure signature: a package whose only entrypoint is a console script (a Python
+  `pyproject` with no obvious `app.py`) gets **no start command** — the container's
+  entrypoint is a bare `/bin/bash`, exit 0, no logs, restart loop — and setting
+  `install_command`/`start_command` did not rescue it (the install landed outside the
+  runtime environment: `ModuleNotFoundError`). Do not iterate on Railpack; write the
+  Dockerfile. **The image must carry `curl` or `wget`**: Coolify's application
+  healthcheck execs one of them inside the container, so on a `-slim` image a healthy
+  app is rolled back as unhealthy with `curl: not found` in the deployment log.
+- **Fixes to someone else's repo** — the bind address, a `Dockerfile`, `curl` — go in
+  as PRs under that repo's own contribution rules, one fix per PR, merged only on the
+  owner's go-ahead. That is the one way this repo writes into theirs.
 - **Zero-downtime**: rolling updates happen for applications *only* when a passing
   healthcheck is configured and no host port is published — both are therefore
   required, not optional. (Compose services always hard-stop then start.)
@@ -149,10 +183,16 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
 - **MCP differences from services**: `deploy` semantics, deployment history
   (`list_deployments`), and `diagnose_app` all *work* for applications; use
   `update_application` for the FQDN.
-- **Internal-lane applications**: docktail labels go through the application's
-  custom container-labels setting rather than a compose file. This path is unproven
-  on this estate — verify with the four steps extra carefully on first use, and
-  record what worked in the app's `stacks/<name>/README.md`.
+- **Internal-lane applications**: docktail labels go in `custom_labels` —
+  newline-separated `key=value` lines, **base64-encoded** (the API rejects plain
+  text). Proven 2026-09: the registrar picks them up exactly like compose labels. In
+  the same `application update`, set `domains: ""` — a UI-created application carries
+  an auto-assigned public sslip.io FQDN that the internal lane must not keep.
+- **Volumes**: `storages create` with `type: persistent` takes `name` and `mount_path`
+  only (`is_directory` belongs to `file` mounts and is rejected).
+- **A secret the human sets in the UI**: `env_vars create` refuses an empty value, so
+  create the key with a `REPLACE_ME` placeholder, `is_runtime: true`, `is_buildtime:
+  false`, `is_shown_once: true`, hand over the exact page, and restart once they save.
 
 ### 3b. Service — third-party compose
 
@@ -215,7 +255,8 @@ htpasswd hash and the login never matches.
 
 1. Applications: create via `application` with the git source, branch, and build
    pack. Services: `service` create with `docker_compose_raw` — **omit `type`** (the
-   API rejects `type` + `docker_compose_raw` together). Either way, target the lane's
+   API rejects `type` + `docker_compose_raw` together) and pass `server_uuid`
+   (`list_servers`; the API refuses without it). Either way, target the lane's
    project and the `environment` from `instance.yaml`. If `list_destinations` shows
    more than one Docker network on the server, pass `destination_uuid` — the API
    refuses a service create without it there (one destination: omit it).
@@ -230,6 +271,13 @@ htpasswd hash and the login never matches.
    response's `list_deployments` hint for services: it returns `[]`. Deployment
    history is invisible for services; on failure, inspect with `run_once` instead of
    hunting for build logs. (History and hints work properly for applications.)
+   **Applications with push-to-deploy: after a merge, do not call `deploy`** — the
+   webhook already queued one (`deployment list_for_app`, `is_webhook: true`), and a
+   second `deploy` stacks an identical build (cancel it with `deployment cancel`).
+   Change build settings *before* merging; a webhook build that started earlier runs
+   with the old settings and simply fails. Follow a build with `deployment get` and
+   `lines`; `deploy wait: true` is moved to the background after 120 s, so pass
+   `timeout_seconds` under that and re-poll. Never wait with a scheduled wakeup.
 
 ## 5. Verify — a green deploy proves nothing
 
@@ -246,7 +294,11 @@ htpasswd hash and the login never matches.
 - **Public:** `curl` the public URL from here — it is on the open internet.
 - In-container checks (files, ports, processes): `scheduled_tasks` `action: run_once`
   (255-char command cap, keep it idempotent). Reach for it at the *first* hypothesis,
-  not the third.
+  not the third. The control-plane read fits under the cap as the three-command
+  recipe in `docs/internal-services.md` (token to a file inside the registrar's
+  container, filtered line out, files removed) — nothing secret returns.
+- `logs` with `lines` in the thousands overflows the tool's output cap into a file;
+  `lines: 100`–`300` with `show_timestamps: true`, then grep, is the working shape.
 
 ## 6. Backups — recommend, don't require
 
@@ -259,7 +311,10 @@ on — a "no" is a decision, not an open item.
 ## 7. Bookkeeping (not optional)
 
 1. `stacks/<name>/docker-compose.yml` — reference copy of what Coolify now holds; break
-   any `content:` mounts out as real files alongside it.
+   any `content:` mounts out as real files alongside it. An application has no
+   compose: its README *is* the reference copy — source repo and branch, build pack
+   and commands, port, labels, volumes, env var names, and every upstream PR the
+   hosting needed.
 2. `stacks/<name>/README.md` — required if anything about the wiring is non-obvious
    (proxy fronting, hand-set secrets, build-from-source, backup decision).
 3. Update the inventory table and, if stateful, the volumes table in

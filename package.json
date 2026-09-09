@@ -1,6 +1,6 @@
 {
   "name": "coolify-devops",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Claude Code skills for operating a Coolify server through the Coolify MCP, with a tailnet-first hosting model. The hosting companion to AI Build Kit. Install with `npx skills add KasperHonore/coolify-devops` or as a Claude Code plugin.",
   "scripts": {

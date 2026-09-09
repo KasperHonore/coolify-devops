@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops with the Coolify MCP configured. Edits the tailnet policy through the Tailscale API or admin console; never touches Coolify resources.
 metadata:
   author: KasperHonore
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # Grant or revoke tailnet access

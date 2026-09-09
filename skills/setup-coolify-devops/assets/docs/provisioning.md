@@ -54,7 +54,10 @@ Coolify will build images on it, your SSH public key installed at creation, a pu
 IPv4 address. Attach the provider's firewall (section 4) before installing Coolify.
 {{/HOST_HETZNER}}
 **Done when** you can `ssh root@<public-ip>` with your key. That is the last time the
-public IP is used for SSH; from section 2 on, SSH goes over the tailnet.
+public IP is used for SSH; from section 2 on, SSH goes over the tailnet. If a package
+fetch on the box hangs, its IPv6 route is probably dead (seen on a Hetzner image:
+AAAA resolved, packets went nowhere) — force IPv4 (`apt-get -o
+Acquire::ForceIPv4=true`, `wget -4`) or fix the route before blaming the mirror.
 
 ---
 
@@ -86,11 +89,24 @@ policy must allow it — the default policy's `ssh` section lets members reach t
 devices, and `docs/tailnet-access.md` covers the grant for a shared server. Beware
 that turning it on drops any SSH session that is already open to the Tailscale IP.
 
-Then, in the Tailscale admin console → **Machines** → this machine's row → **…** →
-**Disable key expiry**. Without this the node's key expires after 180 days and every
-internal tool goes dark at once. (Alternatively sign in with `--advertise-tags=tag:server`
-after adding `tag:server` to `tagOwners` in the policy — tagged devices have expiry
-disabled by default; `docs/tailnet-access.md` covers tags.)
+**Tag the node `tag:server`.** Tailscale Services can only be advertised by a tagged
+node; without this the registrar fails every service add with *"your Tailscale node is
+not tagged"*, however good its credentials. The tag has to exist in the policy first
+(`tagOwners`, `docs/tailnet-access.md` — the policy paste `/setup-coolify-devops` hands over
+in its precondition 3), then:
+
+```bash
+sudo tailscale up --advertise-tags=tag:server --force-reauth
+```
+
+If it refuses because other non-default settings exist, it prints the exact command
+with them re-specified (`--ssh`, `--hostname=…`) — run that, and approve the login URL
+it prints in the admin console. A tagged node has no key expiry (it has no human owner
+to expire), which retires the console's *Disable key expiry* step: verify with
+`tailscale status --json | jq .Self.KeyExpiry` printing `null`. Only an untagged node
+needs that step by hand (Machines → this machine → … → Disable key expiry); without
+one or the other the key expires after 180 days and every internal tool goes dark at
+once.
 
 Note the tailnet IP: `tailscale ip -4` (a `100.x.y.z` address). From now on that is the
 address of this server for you and your team.
@@ -113,7 +129,7 @@ tailnet, and hands you only the console half:
 **Done when** `ssh root@<tailnet-ip>` works from your laptop, on the tailnet, **with no
 key involved** (that is Tailscale SSH answering — `tailscale status` on the host lists
 the machine with `ssh` among its capabilities), and the machine shows in the admin
-console with key expiry disabled.
+console tagged `tag:server` with no key expiry.
 
 ---
 

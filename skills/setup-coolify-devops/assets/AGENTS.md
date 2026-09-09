@@ -202,6 +202,11 @@ output. Reach for it before theorising. The `logs` tool has 500'd for service
 containers in the past but worked in 2026-08 — try it, fall back to `run_once`. See
 `docs/platform.md`, *Working through MCP*. For "how does Coolify do X", `search_docs`
 searches the official docs — use it before guessing.
+- **Wait with tool calls, never with a scheduled wakeup.** A registrar reconcile, an
+image build, a human's console step: poll `logs`, `deployment get` or `get_service` in
+bounded loops. A scheduled wakeup outlives the session — one fired its prompt into the
+next session after a `/clear`, which re-did finished work and committed a spurious
+finding.
 - **Before your first deploy, read `docs/changing-a-resource.md` too**, not just
 `platform.md`. The lore about what actually changes a file mount, what recreates a container, and which
 status fields lie lives there — written by sessions that learned it the hard way.

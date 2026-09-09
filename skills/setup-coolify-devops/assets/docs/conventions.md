@@ -65,8 +65,9 @@ A skill is tested by an agent that did not write it:
 4. Trials are **real operations, not simulations** — get the user's go-ahead before
    one that mutates live state.
 
-Trial status: `/host` (2026-08-25) and `/setup-coolify-devops` (2026-09-08, on a
-real fresh Hetzner box, by someone other than the author; the log is summarised in
+Trial status: `/host` (2026-08-25 as a compose service; 2026-09-09 as a git-source
+application from a private repo) and `/setup-coolify-devops` (2026-09-08 and 09, on a
+real fresh Hetzner box, by someone other than the author; both logs are summarised in
 `skill-library.md`) have had real trials. **`/change-service`, `/health` and
 `/grant-access` have not** — their first real use doubles as their trial; friction log
 mandatory.

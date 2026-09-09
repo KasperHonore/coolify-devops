@@ -3,7 +3,7 @@
   "name": "coolify-devops",
   "displayName": "coolify-devops",
   "description": "Operate a Coolify server from Claude Code through the Coolify MCP: host, change, check and grant access to internal tools on a tailnet, and public ones on the internet. Companion to AI Build Kit for the hosting side.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": {
     "name": "Kasper Honore"
   },

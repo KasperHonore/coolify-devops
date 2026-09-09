@@ -316,7 +316,7 @@ operating guide and this section is the delta for an estate shaped like this one
 
 ### Known MCP rough edges
 
-Confirmed on Coolify 4.3.10; re-check on newer versions. All of these cost time at least once.
+Confirmed on Coolify 4.3.10 and 4.3.18; re-check on newer versions. All of these cost time at least once.
 
 | Behaviour | What to do |
 |---|---|
@@ -330,7 +330,17 @@ Confirmed on Coolify 4.3.10; re-check on newer versions. All of these cost time 
 | `deploy` with `wait: true` **does not wait** for a service — it returns fire-and-forget with no deployment uuid | Poll the site or `list_containers` yourself. |
 | `deploy`'s response for a service hints `list_deployments` "to check status" | Ignore it — that returns `[]` for services (row above). The hint contradicts the documented behaviour. |
 | `service create` **rejects `type` and `docker_compose_raw` together** | Omit `type` entirely for a custom compose. |
-| `diagnose_app` only matches applications | Useless here; everything is a service. |
+| `diagnose_app` only matches applications | Nothing for a compose service; fine for a git-source application. |
+| `get_service`'s `status` sat on `exited` for minutes while the container was `Up (healthy)` | Cross-check with the logs, or on the host with a read-only `docker ps`, before acting on the field. |
+| `service create` refuses without `server_uuid` | Pass it from `list_servers`, alongside the project and environment uuids. |
+| `application update` `custom_labels` must be **base64** | Newline-separated `key=value` lines, base64-encoded; plain text is rejected with a validation error. |
+| An application created from Coolify's UI gets a public `http://<uuid>.<ip>.sslip.io` FQDN | Internal lane: clear it (`domains: ""`) in the first update. |
+| Coolify's application healthcheck **execs `curl`/`wget` inside the container** | A `-slim` image with neither is rolled back as unhealthy while the app runs fine; install one in the Dockerfile. |
+| `storages create` with `type: persistent` rejects `is_directory` | `name` and `mount_path` only; `is_directory` is for `file` mounts. |
+| `env_vars create` refuses an empty value | Create the key with a `REPLACE_ME` placeholder when the human will set the value in the UI. |
+| `deploy` while a webhook deployment is in progress queues a **second** identical build | After a merge, watch `deployment list_for_app` (`is_webhook: true`) instead; `deployment cancel` the duplicate. |
+| `deploy` with `wait: true` on an application is backgrounded by the harness after 120 s | `timeout_seconds` under 120 and re-poll, or `deployment get` with `lines`. |
+| `logs` with `lines` in the thousands overflows the tool's output cap into a file | `lines: 100`–`300` with `show_timestamps: true`, then grep. |
 | `service update` requires the **whole** compose document | Batch compose edits — each round trip re-sends the entire file. |
 | `update_application` with `url: ""` cleanly clears an FQDN | The documented way to withdraw a domain. |
 | `storages` `action: list` returns file-mount **content verbatim** | The way to confirm what a `content:` mount actually holds without a shell. |
