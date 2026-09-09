@@ -207,6 +207,11 @@ image build, a human's console step: poll `logs`, `deployment get` or `get_servi
 bounded loops. A scheduled wakeup outlives the session — one fired its prompt into the
 next session after a `/clear`, which re-did finished work and committed a spurious
 finding.
+- **This side never edits a product repo.** `/host` deploys what a repo is; code that
+will not host (a loopback bind, no Dockerfile, no `curl` for the healthcheck) is a
+finding sent back to the builder, who pushes the fix and Coolify redeploys. No `gh`,
+no clone, no PR from here — the GitHub App Coolify holds is the only GitHub access
+this server has.
 - **Before your first deploy, read `docs/changing-a-resource.md` too**, not just
 `platform.md`. The lore about what actually changes a file mount, what recreates a container, and which
 status fields lie lives there — written by sessions that learned it the hard way.

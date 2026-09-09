@@ -335,7 +335,7 @@ Confirmed on Coolify 4.3.10 and 4.3.18; re-check on newer versions. All of these
 | `service create` refuses without `server_uuid` | Pass it from `list_servers`, alongside the project and environment uuids. |
 | `application update` `custom_labels` must be **base64** | Newline-separated `key=value` lines, base64-encoded; plain text is rejected with a validation error. |
 | An application created from Coolify's UI gets a public `http://<uuid>.<ip>.sslip.io` FQDN | Internal lane: clear it (`domains: ""`) in the first update. |
-| Coolify's application healthcheck **execs `curl`/`wget` inside the container** | A `-slim` image with neither is rolled back as unhealthy while the app runs fine; install one in the Dockerfile. |
+| Coolify's application healthcheck **execs `curl`/`wget` inside the container** | A `-slim` image with neither is rolled back as unhealthy while the app runs fine; a finding for the builder's Dockerfile, not a fix from here. |
 | `storages create` with `type: persistent` rejects `is_directory` | `name` and `mount_path` only; `is_directory` is for `file` mounts. |
 | `env_vars create` refuses an empty value | Create the key with a `REPLACE_ME` placeholder when the human will set the value in the UI. |
 | `deploy` while a webhook deployment is in progress queues a **second** identical build | After a merge, watch `deployment list_for_app` (`is_webhook: true`) instead; `deployment cancel` the duplicate. |

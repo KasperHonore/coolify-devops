@@ -15,7 +15,9 @@ both install routes.** Two decisions, both reversing or sharpening what stands b
   of researching, deploys from the git source with the GitHub App so their preview
   address and push-to-deploy exist, and hands back an address block for the builder
   to paste. Their fit-check question "will anyone outside the team rely on it" *is*
-  our lane question. What is still theirs to add, proposed as [ai-build-kit#32](https://github.com/gwpicard/ai-build-kit/issues/32): `/ship` writing the request, and a
+  our lane question. Sharpened 2026-09-09 (third pass below): the request is
+  *pasted*, never fetched — a private repo is unreadable from the server, by design —
+  and this side never edits a product repo. What is still theirs to add, proposed as [ai-build-kit#32](https://github.com/gwpicard/ai-build-kit/issues/32): `/ship` writing the request, and a
   mention in their README and `/ship` step 4. What was decided not to do: `/ship`
   calling the Coolify MCP from the laptop. A human between "ready" and "live", with a
   session on each machine, is the safety property both kits are built around; our
@@ -333,17 +335,24 @@ What the transcripts taught, all folded in this pass:
   application from the GitHub App in Coolify's UI — public sslip.io FQDN, Railpack,
   `<repo>:<branch>-<uuid>` name — and the skill asked six research questions instead
   of one `list_applications`. It now looks first and adopts.
-- **A private repo needs `gh`, not questions.** The GitHub App lists repos but reads
-  no files; once `gh` was logged in (a separate session installed it, past a dead
-  IPv6 route) every question was answered from the code in a minute. The skill now
-  hands over `gh auth login` as a prepared step and reads the clone.
+- **A private repo is never read from here.** The GitHub App lists repos but reads
+  no files, and the `gh` login that rescued the trial (a separate session installed
+  it, past a dead IPv6 route) is exactly what the hand-off exists to avoid. The six
+  questions the skill asked *were* the hosting request; the fix is to ask for them
+  as the block, filled in the repo's own session by `/ship` and pasted here — the
+  person is the transport both ways. Even #32's "fetch the masterplan raw" fails on
+  a private repo; the request must be pasted, not fetched. Taken to #32, with a
+  hostability contract `/ship` checks before writing it.
 - **Three application facts the library had never met**: `custom_labels` is base64
   (the internal lane on an application is now proven, not "unproven"); Railpack
   produces a bare-`bash` restart loop for a package with only a console-script
   entrypoint, and the fix is a Dockerfile, not more Railpack settings; Coolify's
   application healthcheck execs `curl`/`wget` inside the container, so a `-slim`
-  image rolls a healthy app back. All three needed PRs to the product repo, merged on
-  the owner's go-ahead — the one way this repo writes into theirs, now stated.
+  image rolls a healthy app back. All three needed code changes, and they went
+  upstream as PRs from the server session — the wrong side of the split, needing a
+  GitHub login the server should not hold. The rule is now that this side never
+  edits a product repo: the failing deployment-log line goes back as a findings
+  block, the builder pushes, Coolify redeploys. Those two facts are request fields.
 - **Waiting.** A scheduled wakeup set to catch a 60 s reconcile outlived its session,
   fired into the next one after `/clear`, and re-did finished work as a spurious
   finding and commit. Waiting is bounded polling in tool calls; the rule is in the

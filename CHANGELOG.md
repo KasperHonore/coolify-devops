@@ -19,8 +19,9 @@ different skill content; CI and the publish script both refuse it.
   questions. The git-source application path on the internal lane is proven:
   `custom_labels` is base64, Railpack's bare-`bash` restart loop means "write the
   Dockerfile", the image needs `curl` for Coolify's healthcheck, a webhook deploy
-  is watched rather than duplicated. Hosting fixes to someone else's repo go as PRs
-  the owner merges.
+  is watched rather than duplicated. This side never edits a product repo: the
+  hosting request is pasted in (never fetched, so a private repo needs no `gh` login
+  on the server), and code that will not host goes back as a findings block.
 - Waiting is bounded polling in tool calls, never a scheduled wakeup (one outlived
   its session). Nine new rows in the MCP rough-edges table.
 

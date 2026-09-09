@@ -26,15 +26,17 @@ the values, and never hardcode a value from it back into this skill.
 [AI Build Kit](https://github.com/gwpicard/ai-build-kit) — the companion kit that runs
 on the *builder's* machine — carries `masterplan.md`, `AGENTS.md` and `CHANGELOG.md`
 at its root, and its `/ship` has already judged the work ready before anyone asks to
-host it. That changes three things below, each marked **AI Build Kit**: the hosting
-request in its masterplan replaces the research subagent (step 2), the shape is
-always an application from the git source (step 3a), and the run ends with an
-address block for the builder to paste back (step 7). The split, so neither kit
-oversteps: their `/ship` decides *whether* and *what* goes live; this skill decides
-*where* and *how* it runs; the address is the only thing that crosses. This repo
-never writes into their files — a hosting fix travels as a PR they merge (step 3a) —
-and nothing here reads them except the masterplan, unless it carries no hosting
-request, in which case the code is the report (step 2).
+host it. The way to know is the **hosting request**: `/ship` prints one and the
+person pastes it into this session with the ask — nobody here reads their repo to
+find out (a private one cannot be read from here, and does not need to be). That
+changes three things below, each marked **AI Build Kit**: the pasted request
+replaces the research subagent (step 2), the shape is always an application from
+the git source (step 3a), and the run ends with an address block — or a findings
+block — for the builder to paste back (step 7). The split, so neither kit oversteps:
+their `/ship` decides *whether* and *what* goes live; this skill decides *where* and
+*how* it runs; the request and the address are the only things that cross, and the
+person carries both. **This skill never edits a product repo** — not a Dockerfile,
+not a bind address, not a PR. Code that will not host is a finding for the builder.
 
 ## 1. Decide lane and name
 
@@ -62,26 +64,35 @@ request, in which case the code is the report (step 2).
 
 ## 2. Research the upstream before writing anything
 
-**AI Build Kit: the hosting request is the report.** Read the "How it stays running" section of
-`masterplan.md`, fetched raw at the branch to be deployed. Their `/ship` writes a
-hosting request there with, at minimum: the repo URL and branch, the recommended
-lane, the port the container listens on, the env var *names* it needs (never values —
-those go into Coolify's env store by hand), the paths that must persist, and the
-healthcheck path. That is the deployability report: do not spawn the research
-subagent. Validate it the way any report is validated — against the repo's
-`Dockerfile` at that branch, not `main` — and relay a disagreement as a finding
-rather than resolving it silently. A masterplan with no hosting request is a project
-whose `/ship` predates the hand-off: fall back to the research below, and tell the
-builder the block is missing so their next `/ship` writes it.
+**AI Build Kit: the hosting request is the report.** It arrives **pasted into this
+session**; `/ship` also writes it into the "How it stays running" section of their
+`masterplan.md`, and fetching it raw from there is a convenience for a *public* repo
+only. It carries: the repo URL and branch, the recommended lane, the port the
+container listens on, the env var *names* (never values — those go into Coolify's
+env store by hand), the paths that must persist, the healthcheck path, and the two
+hostability facts Coolify will test — a `Dockerfile` at the root whose image carries
+`curl` or `wget`, and a server that binds `0.0.0.0` or reads `HOST`/`PORT`. That is
+the deployability report: do not spawn the research subagent, and do not read the
+code. A request with a field missing goes back for that field. No request at all —
+a `/ship` predating the hand-off, or a repo no kit built — means handing the person
+this block to have filled in *the repo's own session* and stopping until it comes
+back; the fields are a minute's work there and unanswerable here (a trial asked
+them as six questions of someone who could not know):
 
-**A private repo needs `gh` before any research.** `github_apps` `list_repos` proves
-Coolify can pull it but reads no files. Check `gh auth status`. If `gh` is missing,
-install it from GitHub's apt repo — forcing IPv4 (`wget -4`, `apt-get -o
-Acquire::ForceIPv4=true`) when the fetch hangs; a Hetzner host's IPv6 route did. If it
-is not logged in, hand the human `gh auth login` as a prepared step (the browser
-device flow; the token lands in gh's own config and nothing enters the session). Then
-`gh repo clone <repo> -- --depth 1` into the scratchpad and answer the report from
-the code. Do not ask the user what the code can tell you.
+```
+Repo:          <url>, branch <branch>
+Lane:          internal | public
+Port:          <port the container listens on>
+Env vars:      <names only>
+Persist:       <paths that must survive a restart | none>
+Healthcheck:   <path>
+Dockerfile:    at root, image has curl or wget | none yet
+Bind:          0.0.0.0 | reads HOST and PORT | 127.0.0.1 (not hostable yet)
+```
+
+**A private repo is never read from here.** `github_apps` `list_repos` proves Coolify
+can pull it, and that GitHub App is the only GitHub access this server has or wants —
+no `gh`, no token, no clone. The block above is the input, filled where the code is.
 
 **Do not skip to compose authoring on the strength of a README badge.** For anything
 beyond a single obvious image, spawn a web-capable research subagent to read the
@@ -110,11 +121,11 @@ The subagent answers, from the official installation/self-hosting docs (not blog
    choosing the shape.
 8. **Gotchas**: migration steps, self-hosting license limits, known reverse-proxy or
    HTTPS issues.
-9. **For a git-source application, from the code**: the bind address — it must be
-   `0.0.0.0`, or read `HOST`/`PORT`, which Coolify injects (`HOST=0.0.0.0`,
-   `PORT=<port>`); a hardcoded `127.0.0.1` is unreachable from every other container,
-   docktail's proxy included. The exact start command, and whether a `Dockerfile`
-   exists.
+9. **For a git-source application — from the request, never from the code**: the
+   bind address (`0.0.0.0`, or `HOST`/`PORT`, which Coolify injects as `HOST=0.0.0.0`
+   and `PORT=<port>`; a hardcoded `127.0.0.1` is unreachable from every other
+   container, docktail's proxy included), the start command, and whether a
+   `Dockerfile` exists.
 
 Everything version-sensitive is validated **against the tag being pinned, not `main`**
 (`raw.githubusercontent.com/<org>/<repo>/<tag>/<path>`).
@@ -168,13 +179,16 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
   `pyproject` with no obvious `app.py`) gets **no start command** — the container's
   entrypoint is a bare `/bin/bash`, exit 0, no logs, restart loop — and setting
   `install_command`/`start_command` did not rescue it (the install landed outside the
-  runtime environment: `ModuleNotFoundError`). Do not iterate on Railpack; write the
-  Dockerfile. **The image must carry `curl` or `wget`**: Coolify's application
-  healthcheck execs one of them inside the container, so on a `-slim` image a healthy
-  app is rolled back as unhealthy with `curl: not found` in the deployment log.
-- **Fixes to someone else's repo** — the bind address, a `Dockerfile`, `curl` — go in
-  as PRs under that repo's own contribution rules, one fix per PR, merged only on the
-  owner's go-ahead. That is the one way this repo writes into theirs.
+  runtime environment: `ModuleNotFoundError`). Do not iterate on Railpack, and do not
+  write the Dockerfile: relay it (step 7). **The image must carry `curl` or `wget`**:
+  Coolify's application healthcheck execs one of them inside the container, so on a
+  `-slim` image a healthy app is rolled back as unhealthy with `curl: not found` in
+  the deployment log — again a finding for the builder, not a fix from here.
+- **Code that will not host is relayed, never fixed here.** A bind on `127.0.0.1`, no
+  start command, a missing `curl`: stop, send the findings block (step 7) quoting the
+  exact deployment-log line, and wait for the push — Coolify redeploys on it. Three
+  such fixes once went upstream as PRs from the server session; that was the wrong
+  side of the split, and it needed a GitHub login the server should not hold.
 - **Zero-downtime**: rolling updates happen for applications *only* when a passing
   healthcheck is configured and no host port is published — both are therefore
   required, not optional. (Compose services always hard-stop then start.)
@@ -313,8 +327,8 @@ on — a "no" is a decision, not an open item.
 1. `stacks/<name>/docker-compose.yml` — reference copy of what Coolify now holds; break
    any `content:` mounts out as real files alongside it. An application has no
    compose: its README *is* the reference copy — source repo and branch, build pack
-   and commands, port, labels, volumes, env var names, and every upstream PR the
-   hosting needed.
+   and commands, port, labels, volumes, env var names, and every finding that went
+   back to the builder on the way.
 2. `stacks/<name>/README.md` — required if anything about the wiring is non-obvious
    (proxy fronting, hand-set secrets, build-from-source, backup decision).
 3. Update the inventory table and, if stateful, the volumes table in
@@ -340,3 +354,14 @@ on — a "no" is a decision, not an open item.
 
    Their `/ship` reads that block on every later launch, and their
    operational-readiness step counts rollback, access and backups as answered by it.
+
+   A deploy that failed on the code ends the run with this instead — no bookkeeping
+   beyond a line in `docs/infrastructure.md` — and resumes at step 4 when the push
+   lands:
+
+   ```
+   Not hosted yet — coolify-devops at <Coolify URL>
+   Finding:   <one line, quoting the deployment log>
+   Needs:     <the request field it violates: Dockerfile with curl | bind 0.0.0.0 or HOST/PORT | start command | …>
+   Then:      push to <branch>; Coolify redeploys and /host verifies
+   ```
