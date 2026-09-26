@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops (instance.yaml and docs/ present) with the Coolify MCP configured. Needs network access to the Coolify API and to upstream project documentation.
 metadata:
   author: KasperHonore
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # Host a new resource
@@ -54,7 +54,9 @@ not a bind address, not a PR. Code that will not host is a finding for the build
   exposure is the user's call, not the skill's. **AI Build Kit:** the hosting request
   names a recommended lane, derived from their fit check ("will anyone outside the
   team sign in or rely on it?" is this question in their words). Offer it as the
-  recommendation inside the same one question — still ask.
+  recommendation inside the same one question — still ask. If the request wants
+  per-PR previews, say inside that question that only the public lane can have them
+  (step 3a) — a trade-off for the user to weigh, not a reason to pick public for them.
   - Internal → project `projects.internal`, address `https://<name>.<domains.internal_suffix>`
   - Public → project `projects.public`, address `https://<name>.<domains.public_suffix>`
 - **Name: one plain lowercase word**, hyphen only if unavoidable. Same name for the
@@ -162,19 +164,40 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
 ### 3a. Application — our own git repo
 
 - **Source**: a GitHub App integration is the full-featured path (auto-configured
-  webhooks, auto-deploy on push, commit statuses, per-PR preview deployments) and
-  needs configuring once per account; a plain public-repo source or deploy key works
-  with a manually added webhook for push-to-deploy. Point it at the default branch —
+  webhooks, auto-deploy on push, commit statuses, and per-PR preview deployments on
+  the public lane — below) and needs configuring once per account; a plain
+  public-repo source or deploy key works with a manually added webhook for
+  push-to-deploy. Point it at the default branch —
   a push to `main` then redeploys automatically. **Push-to-deploy needs GitHub to
   reach the Coolify instance URL**: it works when `exposure.coolify_ui` is `github`
   or `internet`, and cannot when it is `tailnet` — say so up front rather than
   letting the first push silently not deploy (`docs/platform.md`, *The Coolify
-  dashboard and push-to-deploy*). **AI Build Kit:** use the GitHub App source. Its
-  per-PR preview deployments are what the builder's `/ship` calls the preview
-  address, and push-to-deploy on the default branch is what every later `/ship`
-  relies on — a first launch here, then a push per release. Without them the hand-off
-  degrades to a manual redeploy per release, which goes in the address block (step 7)
-  rather than being discovered at the second release.
+  dashboard and push-to-deploy*). **AI Build Kit:** use the GitHub App source.
+  Push-to-deploy on the default branch is what every later `/ship` relies on — a
+  first launch here, then a push per release. Without it the hand-off degrades to a
+  manual redeploy per release, which goes in the address block (step 7) rather than
+  being discovered at the second release.
+- **Preview deployments are off until a human turns them on, and exist on the
+  public lane only.** Coolify creates every application with
+  `is_preview_deployments_enabled: false`; a PR webhook then answers "Preview
+  deployments disabled." and nothing builds. The MCP cannot set the flag — the
+  `application` tool has no such field and answers "Invalid request" — so do not try.
+  When the request or the user wants previews:
+  - **Public lane:** after the app is created with its FQDN (step 4), hand over the
+    exact step: the app's **Previews** page, *Preview settings*, the **Enable preview
+    deployments** button (easy to miss beside the "PR deployment access" dropdown).
+    Leave the URL template at its default, `{{pr_id}}.{{domain}}`. Read back with
+    `get_application` until `settings.is_preview_deployments_enabled` is `true`,
+    then verify (step 5). The PR webhook needs GitHub to reach Coolify exactly as
+    push-to-deploy does: with `exposure.coolify_ui: tailnet`, previews cannot
+    trigger, so write `none` rather than hand over the button.
+  - **Internal lane: previews are not available.** Coolify replaces an app's custom
+    labels with its own Traefik labels on every PR deployment, so the docktail labels
+    never reach the preview container, and it gives an app with no domain no preview
+    address. Leave the flag off and write `none` with that reason in the address block.
+  Never switch the flag through Coolify's REST API instead: that is the write path
+  the MCP rule closes, and the button is the sanctioned route until the MCP gains
+  the field (`docs/platform.md`, *Known MCP rough edges*).
 - **Build pack**: a `Dockerfile` in the repo for anything long-lived (full control,
   reproducible); Nixpacks/Railpack only for quick zero-config starts. What Railpack
   actually needs from a Python repo (read from its 0.23 provider after a trial): a
@@ -314,6 +337,12 @@ htpasswd hash and the login never matches.
   explicitly — never skip them silently, and never fight the permission system for a
   secret.
 - **Public:** `curl` the public URL from here — it is on the open internet.
+- **Previews, when switched on:** the flag reading `true` proves nothing about a PR.
+  Previews count as working only once a pull request has produced one:
+  `deployment list_for_app` shows a deployment with that `pull_request_id`, it
+  finishes, and `https://<pr_id>.<name>.<domains.public_suffix>` answers `curl`. This
+  side never opens a PR on a product repo; ask the builder to open one, or let the
+  first real one count, and until then the address block says so (step 7).
 - In-container checks (files, ports, processes): `scheduled_tasks` `action: run_once`
   (255-char command cap, keep it idempotent). Reach for it at the *first* hypothesis,
   not the third. The control-plane read fits under the cap as the three-command
@@ -352,7 +381,11 @@ on — a "no" is a decision, not an open item.
    ```
    Hosted by coolify-devops at <Coolify URL>
    Address:        https://<name>.<suffix>                (lane: internal | public)
-   Preview:        per-PR preview deployments via the GitHub App | none — say why
+   Preview:        per-PR at https://<pr_id>.<name>.<suffix>, seen on PR #<n>
+                   | enabled, not yet seen: confirm on the first PR
+                   | none: <why: internal lane (Coolify drops custom labels on PR
+                     deploys; no app domain, no preview URL) | dashboard not reachable by GitHub
+                     | not wanted | not a GitHub App source>
    Later releases: push to <branch>; Coolify redeploys | manual redeploy — say why
    Rollback:       redeploy the previous deployment from Coolify's history
    Access:         <who can reach it, per docs/tailnet-state.md | anyone on the internet>
@@ -360,6 +393,8 @@ on — a "no" is a decision, not an open item.
    Secrets:        <env var names>, held in Coolify's env store for this resource
    ```
 
+   Never write a preview address that step 5 has not seen: a `Preview:` line that
+   promises PR builds while the flag is off is the failure this line exists to stop.
    Their `/ship` reads that block on every later launch, and their
    operational-readiness step counts rollback, access and backups as answered by it.
 

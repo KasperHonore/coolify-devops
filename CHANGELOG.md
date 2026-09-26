@@ -5,6 +5,23 @@ a GitHub release for each, with this entry as its notes and the Agent Skills dis
 index plus one artifact per skill attached. A version is never re-released with
 different skill content; CI and the publish script both refuse it.
 
+## 0.5.0 — 2026-09-26
+
+- `/host` no longer promises per-PR preview deployments it cannot deliver
+  ([#1](https://github.com/KasperHonore/coolify-devops/issues/1)). Coolify creates
+  every application with previews off, and the Coolify MCP cannot turn them on, so a
+  PR used to build nothing while the address block said previews worked. Now, on the
+  public lane, `/host` hands the human the **Enable preview deployments** button,
+  reads the flag back, and calls previews working only after a PR has produced one.
+  On the internal lane it says previews are not available and why: Coolify drops
+  the docktail labels on PR deployments and gives an app with no domain no preview
+  address.
+- The address block's `Preview:` line has three honest values (seen on a PR,
+  enabled but not yet seen, or none with the reason), which changes what AI Build
+  Kit's `/ship` reads.
+- Three new rows in the MCP rough-edges table: the missing preview flag, previews
+  needing an app domain, and PR deployments replacing custom labels.
+
 ## 0.4.0 — 2026-09-09
 
 - Lessons from two more trials on a fresh box: the tailnet policy paste comes before
