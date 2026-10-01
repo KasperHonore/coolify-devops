@@ -13,7 +13,7 @@ both install routes.** Two decisions, both reversing or sharpening what stands b
   recognises such a project (`masterplan.md` + `AGENTS.md` + `CHANGELOG.md`), reads
   the hosting request `/ship` writes into the masterplan's "How it stays running" section instead
   of researching, deploys from the git source with the GitHub App so push-to-deploy exists
-  (and per-PR previews, on the public lane only, once a human switches them on), and hands back an address block for the builder
+  (and per-PR previews, on the public lane only, switched on by `/host` through the MCP), and hands back an address block for the builder
   to paste. Their fit-check question "will anyone outside the team rely on it" *is*
   our lane question. Sharpened 2026-09-09 (third pass below): the request is
   *pasted*, never fetched — a private repo is unreadable from the server, by design —

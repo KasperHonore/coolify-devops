@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops (instance.yaml and docs/ present) with the Coolify MCP configured. Needs network access to the Coolify API and to upstream project documentation.
 metadata:
   author: KasperHonore
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # Host a new resource
@@ -177,27 +177,30 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
   first launch here, then a push per release. Without it the hand-off degrades to a
   manual redeploy per release, which goes in the address block (step 7) rather than
   being discovered at the second release.
-- **Preview deployments are off until a human turns them on, and exist on the
-  public lane only.** Coolify creates every application with
-  `is_preview_deployments_enabled: false`; a PR webhook then answers "Preview
-  deployments disabled." and nothing builds. The MCP cannot set the flag — the
-  `application` tool has no such field and answers "Invalid request" — so do not try.
-  When the request or the user wants previews:
-  - **Public lane:** after the app is created with its FQDN (step 4), hand over the
-    exact step: the app's **Previews** page, *Preview settings*, the **Enable preview
-    deployments** button (easy to miss beside the "PR deployment access" dropdown).
-    Leave the URL template at its default, `{{pr_id}}.{{domain}}`. Read back with
-    `get_application` until `settings.is_preview_deployments_enabled` is `true`,
-    then verify (step 5). The PR webhook needs GitHub to reach Coolify exactly as
-    push-to-deploy does: with `exposure.coolify_ui: tailnet`, previews cannot
-    trigger, so write `none` rather than hand over the button.
+- **Preview deployments are off by default and exist on the public lane only.**
+  Coolify creates every application with `is_preview_deployments_enabled: false`; a
+  PR webhook then answers "Preview deployments disabled." and nothing builds. When
+  the request or the user wants previews:
+  - **Public lane:** switch them on through the MCP — `is_preview_deployments_enabled:
+    true` on the `application` call that sets the FQDN (step 4), then read back
+    `settings.is_preview_deployments_enabled` with `get_application` and verify
+    (step 5). Leave `preview_url_template` unset (Coolify's default,
+    `{{pr_id}}.{{domain}}`). Leave `is_pr_deployments_public_enabled` off: it builds
+    PRs from forks too, which is an exposure call — ask before setting it. The PR
+    webhook needs GitHub to reach Coolify exactly as push-to-deploy does: with
+    `exposure.coolify_ui: tailnet`, previews cannot trigger, so leave the flag off
+    and write `none`.
+  - **MCP too old:** the field needs `@masonator/coolify-mcp` 3.6.0 or later. If
+    `get_mcp_version` is below that, the result notes the flag was ignored, or the
+    read-back is still `false`, stop and tell the user to update the MCP —
+    `.mcp.json` runs `@latest`, so restarting the session picks up the current
+    release (clear the npx cache if a stale copy persists) — then repeat the call.
+    Do not hand over the dashboard button instead, and never set the flag through
+    Coolify's REST API: that is the write path the MCP rule closes.
   - **Internal lane: previews are not available.** Coolify replaces an app's custom
     labels with its own Traefik labels on every PR deployment, so the docktail labels
     never reach the preview container, and it gives an app with no domain no preview
     address. Leave the flag off and write `none` with that reason in the address block.
-  Never switch the flag through Coolify's REST API instead: that is the write path
-  the MCP rule closes, and the button is the sanctioned route until the MCP gains
-  the field (`docs/platform.md`, *Known MCP rough edges*).
 - **Build pack**: a `Dockerfile` in the repo for anything long-lived (full control,
   reproducible); Nixpacks/Railpack only for quick zero-config starts. What Railpack
   actually needs from a Python repo (read from its 0.23 provider after a trial): a
@@ -306,7 +309,8 @@ htpasswd hash and the login never matches.
    more than one Docker network on the server, pass `destination_uuid` — the API
    refuses a service create without it there (one destination: omit it).
 2. Public lane: set the FQDN `https://<name>.<domains.public_suffix>` on the app
-   container.
+   container — with `is_preview_deployments_enabled: true` in the same call when
+   previews are wanted (step 3a), then read the flag back.
 3. Set any hand-set env vars (`env_vars` / `bulk_env_update`). Remember: only `${VAR}`
    references in the compose create env-store rows.
 4. Deploy. **`deploy wait: true` does not wait for services** — poll
@@ -323,6 +327,10 @@ htpasswd hash and the login never matches.
    with the old settings and simply fails. Follow a build with `deployment get` and
    `lines`; `deploy wait: true` is moved to the background after 120 s, so pass
    `timeout_seconds` under that and re-poll. Never wait with a scheduled wakeup.
+   **Rebuilding a preview** (say, after an env var change): `deploy` with the
+   application **uuid** and `pr: <n>`. It only redeploys a preview the PR webhook
+   already created — otherwise Coolify answers "Pull request N not found for this
+   resource." — so it never makes the first one.
 
 ## 5. Verify — a green deploy proves nothing
 

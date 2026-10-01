@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run inside the directory that will become the deployment repo, on a machine with the Coolify MCP configured and Node 18+ for the bundled scaffolder. Needs network access to the Coolify API and, optionally, the Tailscale and Hetzner APIs.
 metadata:
   author: KasperHonore
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # Set up an instance
@@ -270,7 +270,9 @@ structural ones alone, and re-render.
 `node "${CLAUDE_SKILL_DIR}/scripts/scaffold.js" --render --set=coolify.version_observed=<v>`,
 which rewrites that one line and re-renders, never by hand-editing `instance.yaml`;
 `get_mcp_version` goes into the platform table of `docs/infrastructure.md` (its tool
-names have moved between majors, so the version explains any doc/tool mismatch);
+names have moved between majors, so the version explains any doc/tool mismatch;
+below 3.6.0, tell the user to update before going on — `/host` needs it to switch
+previews on);
 `list_servers` shows the server reachable and validated; `list_destinations` says how
 many Docker networks the server has, which decides whether every later create must
 carry `destination_uuid` — record the count in the platform table too. If the MCP

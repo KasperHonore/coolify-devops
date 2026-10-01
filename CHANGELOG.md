@@ -5,6 +5,25 @@ a GitHub release for each, with this entry as its notes and the Agent Skills dis
 index plus one artifact per skill attached. A version is never re-released with
 different skill content; CI and the publish script both refuse it.
 
+## 0.6.0 — 2026-10-01
+
+- `/host` switches per-PR preview deployments on itself
+  ([#2](https://github.com/KasperHonore/coolify-devops/issues/2)). The Coolify MCP
+  gained the preview fields in 3.6.0, so on the public lane `/host` now sets
+  `is_preview_deployments_enabled` when it sets the app's address, reads it back, and
+  still counts previews as working only after a PR has produced one. The
+  **Enable preview deployments** button is no longer part of the procedure. Previews
+  from forked repositories stay off unless the user asks for them.
+- On a Coolify MCP older than 3.6.0, `/host` and `setup-coolify-devops` tell the user
+  to update it (restart the session; `.mcp.json` runs `@latest`) rather than work
+  around it.
+- `/host` can rebuild an existing preview with `deploy` and `pr` (MCP 3.7.0). It
+  cannot create the first one: that still comes from GitHub's webhook.
+- `docs/platform.md`: the "MCP cannot switch previews on" row is replaced by the
+  version requirement, and two rows are added: the MCP's "ignored `<key>`" note means
+  a field was not sent, and `deploy` with `pr` only redeploys a preview that exists.
+- The internal lane still has no previews.
+
 ## 0.5.0 — 2026-09-26
 
 - `/host` no longer promises per-PR preview deployments it cannot deliver

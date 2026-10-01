@@ -183,7 +183,7 @@ HTTPS. When you deploy one, its `stacks/<name>/README.md` is where the wiring is
 
 Three projects (`projects.*` in `instance.yaml`), each with the single environment named by `environment`. There is no staging or
 preview environment anywhere. Per-PR preview deployments exist only on public-lane
-applications, switched on per app by a human (rough edges below); the internal lane
+applications, switched on per app through the MCP by `/host` (rough edges below); the internal lane
 cannot have them.
 
 | Project | Purpose |
@@ -318,7 +318,7 @@ operating guide and this section is the delta for an estate shaped like this one
 
 ### Known MCP rough edges
 
-Confirmed on Coolify 4.3.10, 4.3.18 and (the preview-flag row) 4.3.23; re-check on newer versions. All of these cost time at least once.
+Confirmed on Coolify 4.3.10, 4.3.18 and (the preview rows) 4.3.23 or later; re-check on newer versions. All of these cost time at least once.
 
 | Behaviour | What to do |
 |---|---|
@@ -341,7 +341,9 @@ Confirmed on Coolify 4.3.10, 4.3.18 and (the preview-flag row) 4.3.23; re-check 
 | Railpack on a Python repo with only `pyproject.toml` builds an image with **no install step and no start command** | Its provider installs only from a lock file or `requirements.txt`, and takes the start command from a `Procfile` or a root `main.py`/`app.py`. The result is a bare-`bash` restart loop that Coolify reports as `finished`. Relay to the builder. |
 | Coolify's `install_command` under Railpack runs at build but its packages **never reach the runtime image** | Railpack's deploy stage copies the interpreter layer from before the install step and only `/app` from after it — `ModuleNotFoundError` at start. Not a fix path; the repo needs a lock file (Railpack builds `/app/.venv` from it) or a Dockerfile. |
 | `deployment get` shows the build tail, not the `railpack prepare` plan | The detection summary ("No start command detected", the plan JSON) is at the top of the log; page with a large `lines` value, or ask for the first lines, when the tail alone does not explain a `finished` build that does not run. |
-| **The MCP cannot switch preview deployments on.** `application` has no `is_preview_deployments_enabled` field and answers "Invalid request"; Coolify creates every app with it `false`, and a PR webhook then answers "Preview deployments disabled." | A human clicks **Enable preview deployments** on the app's Previews page (*Preview settings*, beside the "PR deployment access" dropdown). Read back `settings.is_preview_deployments_enabled` with `get_application`. Not Coolify's REST API: the MCP rule closes that path. Confirmed on 4.3.23 with MCP 3.5.1. |
+| **Preview deployments need MCP 3.6.0 or later.** Coolify creates every app with `is_preview_deployments_enabled: false`, and a PR webhook then answers "Preview deployments disabled." MCP 3.5.1 silently dropped the flag: sent alone, "Invalid request"; sent beside a known field, 200 with nothing changed | Set the flag through `application` (create or update) and read back `settings.is_preview_deployments_enabled` with `get_application`. If `get_mcp_version` is below 3.6.0 or the read-back is `false`, update the MCP (restart the session; `.mcp.json` runs `@latest`) and repeat. Not the dashboard button, not Coolify's REST API. Confirmed on 4.3.23 with MCP 3.7.0: set on create and toggled by update, each read back. |
+| From MCP 3.7.0 a result can end in "Note: ignored `<key>`, which <tool> does not accept, so it was not sent." | That key never reached Coolify: treat it as a failed write, not a warning. Usually a typo or a field the running MCP is too old for. An `application` update left with nothing to send answers "Error: nothing to update". |
+| `deploy` with `pr` only **redeploys an existing preview** | Needs the application uuid (a tag or name is refused). With no preview for that PR yet, Coolify answers "Pull request N not found for this resource." and queues nothing: the first preview always comes from the PR webhook. MCP 3.7.0+. |
 | A PR deployment of an app **with no domain gets no preview URL** | Coolify derives the preview FQDN from the app's own (default template: the PR number, a dot, the app domain); the PR webhook has no fallback, so an internal-lane app's preview has no address. Read from Coolify 4.3.23's source, not yet reproduced live. |
 | A PR deployment **replaces the app's custom labels** with Coolify's generated proxy labels | The docktail labels never reach the preview container, so the registrar never publishes it. With the row above: no previews on the internal lane. Read from Coolify 4.3.23's source, not yet reproduced live. |
 | `storages create` with `type: persistent` rejects `is_directory` | `name` and `mount_path` only; `is_directory` is for `file` mounts. |
