@@ -1,11 +1,11 @@
 ---
 name: host
-description: Host something new on the Coolify server, end to end — from a git repo, Docker image, or product name to a verified, reachable service. Use when the user says "host X", "deploy X", "spin up X", "put X on the tailnet", or "make X public". Handles lane choice (internal/public), naming, compose authoring, Coolify creation, deployment, verification, and repo bookkeeping.
+description: Host something new on the Coolify server, end to end — from a git repo, Docker image, or product name to a verified, reachable service. Use when the user says "host X", "deploy X", "spin up X", "put X on the tailnet", or "make X public", or "roll back X" after a bad release. Handles lane choice (internal/public), naming, compose authoring, Coolify creation, deployment, verification, rollback, and repo bookkeeping.
 license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops (instance.yaml and docs/ present) with the Coolify MCP configured. Needs network access to the Coolify API and to upstream project documentation.
 metadata:
   author: KasperHonore
-  version: "0.6.0"
+  version: "0.7.0"
 ---
 
 # Host a new resource
@@ -331,6 +331,22 @@ htpasswd hash and the login never matches.
    application **uuid** and `pr: <n>`. It only redeploys a preview the PR webhook
    already created — otherwise Coolify answers "Pull request N not found for this
    resource." — so it never makes the first one.
+5. **Rolling back an application** (a redeploy of a repo already hosted here went
+   out broken, and the fix is not one push away): `deployment rollback_images` with
+   the application **uuid** lists the image tags Coolify still holds, then `deploy`
+   with that uuid and `rollback_to: <tag>` (plus `wait: true` and `timeout_seconds`
+   as for any deploy), then verify as in step 5. Needs Coolify 4.3+ and MCP 3.8.0+.
+   - The MCP refuses a tag missing from a non-empty list. An **empty** list means
+     Coolify could not inspect the server, not that nothing is held: the MCP lets
+     the rollback through, so pick the tag from `deployment list_for_app` (the
+     commit of the last good deployment) and check the result before trusting it.
+   - It is not confirmation-guarded, like `deploy`. Name the tag, its commit and
+     what it undoes to the user before calling it.
+   - With push-to-deploy the next push to the branch builds over the rollback. It
+     holds the line until the builder reverts or fixes, nothing more; say so.
+   - Not for services (no deployment history) and not for a first deploy (nothing to
+     go back to). A deploy that failed on the code still ends with the findings
+     block in step 7.
 
 ## 5. Verify — a green deploy proves nothing
 
@@ -395,7 +411,7 @@ on — a "no" is a decision, not an open item.
                      deploys; no app domain, no preview URL) | dashboard not reachable by GitHub
                      | not wanted | not a GitHub App source>
    Later releases: push to <branch>; Coolify redeploys | manual redeploy — say why
-   Rollback:       redeploy the previous deployment from Coolify's history
+   Rollback:       deploy rollback_to an earlier image tag (deployment rollback_images); holds until the next push
    Access:         <who can reach it, per docs/tailnet-state.md | anyone on the internet>
    Backups:        <the decision from step 6>
    Secrets:        <env var names>, held in Coolify's env store for this resource

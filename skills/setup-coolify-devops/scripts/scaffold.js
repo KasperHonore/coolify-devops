@@ -306,7 +306,12 @@ async function main() {
   internal = internal || '';
   pub = pub || '';
   coolifyUrl = (coolifyUrl || '').trim().replace(/\/+$/, '');
-  if (coolifyUrl && !/^https?:\/\//i.test(coolifyUrl)) coolifyUrl = 'http://' + coolifyUrl; // "localhost:8000" is a common answer
+  // "localhost:8000" is a common answer and means http; a bare domain sits behind a proxy
+  // that redirects to https, and the MCP refuses redirects (3.9.0), so guess https for it.
+  if (coolifyUrl && !/^https?:\/\//i.test(coolifyUrl)) {
+    const plainHttp = /:\d+$/.test(coolifyUrl) || /^(localhost|\d+\.\d+\.\d+\.\d+|\[)/i.test(coolifyUrl);
+    coolifyUrl = (plainHttp ? 'http://' : 'https://') + coolifyUrl;
+  }
   dnsProvider = dnsProvider || dnsProviderFor(pub);
   uiExposure = uiExposure || 'github';
   hostProvider = hostProvider || 'hetzner';
@@ -371,7 +376,7 @@ Scaffolded ${rel}/
   AGENTS.md          operating rules for every agent session (Claude Code, Codex, Cursor, ...)
   CLAUDE.md          one line, @AGENTS.md — Claude Code imports the same rules
   instance.yaml      your bindings${internal ? '' : ' (blank — /setup-coolify-devops fills them)'}
-  .mcp.json          Coolify MCP wiring; reads COOLIFY_BASE_URL and COOLIFY_ACCESS_TOKEN from your shell
+  .mcp.json          Coolify MCP wiring; reads COOLIFY_BASE_URL, COOLIFY_ACCESS_TOKEN (and optional COOLIFY_UI_URL) from your shell
   docs/              runbooks and state files, rendered for your instance
   stacks/            reference copies seeded for: ${seeded.join(', ') || '(none)'} — plus README.md
 ${gitDone ? '  git: committed on ' + branch : '  git: not initialised (run git init yourself)'}
@@ -384,6 +389,7 @@ Human steps still ahead (the skill hands these over and verifies them):
     and reboot (a bare export lasts one session; the .gitignore keeps it out of git):
        ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
        export COOLIFY_BASE_URL=${coolifyUrl || (onHost ? 'http://localhost:8000' : 'http://<tailnet-ip-of-the-host>:8000')}
+       export COOLIFY_UI_URL=<dashboard address>  # optional: the URL you open in a browser, so MCP links work there
        export COOLIFY_ACCESS_TOKEN=<token>      # read + write + deploy scopes; never root
        export HCLOUD_TOKEN=<token>              # optional: lets the skills manage the Hetzner firewall
        EOF

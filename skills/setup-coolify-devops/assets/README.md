@@ -14,13 +14,16 @@ Coolify MCP.
 
 ## Running a session
 
-`.mcp.json` reads `COOLIFY_BASE_URL` and `COOLIFY_ACCESS_TOKEN` from the shell; the token
+`.mcp.json` reads `COOLIFY_BASE_URL`, `COOLIFY_ACCESS_TOKEN` and, optionally,
+`COOLIFY_UI_URL` (the dashboard as your browser reaches it, for the MCP's links) from
+the shell; the token
 is never committed. Keep them in a root-only file that your shell sources, so they
 survive logout and reboot (the allow-list `.gitignore` keeps it out of git):
 
 ```bash
 ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
 export COOLIFY_BASE_URL=http://localhost:8000     # or the host's tailnet IP:8000 from elsewhere
+export COOLIFY_UI_URL=http://<tailnet-ip>:8000    # optional: the dashboard as your browser reaches it
 export COOLIFY_ACCESS_TOKEN=<token>               # read + write + deploy scopes; never root
 export HCLOUD_TOKEN=<token>                       # optional: Hetzner API, so the skills manage the firewall
 EOF

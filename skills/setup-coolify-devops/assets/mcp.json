@@ -5,6 +5,7 @@
       "args": ["-y", "@masonator/coolify-mcp@latest"],
       "env": {
         "COOLIFY_BASE_URL": "${COOLIFY_BASE_URL}",
+        "COOLIFY_UI_URL": "${COOLIFY_UI_URL:-}",
         "COOLIFY_ACCESS_TOKEN": "${COOLIFY_ACCESS_TOKEN}"
       }
     }

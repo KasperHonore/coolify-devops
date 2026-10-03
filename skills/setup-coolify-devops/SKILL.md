@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run inside the directory that will become the deployment repo, on a machine with the Coolify MCP configured and Node 18+ for the bundled scaffolder. Needs network access to the Coolify API and, optionally, the Tailscale and Hetzner APIs.
 metadata:
   author: KasperHonore
-  version: "0.6.0"
+  version: "0.7.0"
 ---
 
 # Set up an instance
@@ -78,6 +78,7 @@ done because it was asked for:
    ```bash
    ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
    export COOLIFY_BASE_URL=http://localhost:8000     # or the host's tailnet IP:8000 from elsewhere
+   export COOLIFY_UI_URL=http://<tailnet-ip>:8000    # optional: the dashboard as your browser reaches it
    export COOLIFY_ACCESS_TOKEN=<token>               # read + write + deploy scopes; never root
    export HCLOUD_TOKEN=<token>                       # optional: Hetzner API, so the skill manages the firewall
    EOF
@@ -205,7 +206,11 @@ confirmed that connection works.
 of picking an option, the options were wrong for them: answer what they asked, then
 re-ask the question with better options. Two that have happened: "can I choose my
 own?" for the tailnet domain (below), and a Coolify URL typed without a scheme
-(`localhost:8000` — the scaffolder adds `http://`, but confirm it).
+(`localhost:8000` — the scaffolder adds `http://` to a host with a port, a bare IP or
+`localhost`, and `https://` to a bare domain; confirm it). **A domain's base URL must
+be `https://`:** from MCP 3.9.0 the MCP follows no redirects, so an `http://` URL that
+a proxy upgrades fails every call with "Use https://… as the base URL", and a
+Cloudflare Access login page is an error, not a result. `doctor` names either.
 
 Ask for each remaining binding; never assume:
 
@@ -272,7 +277,7 @@ which rewrites that one line and re-renders, never by hand-editing `instance.yam
 `get_mcp_version` goes into the platform table of `docs/infrastructure.md` (its tool
 names have moved between majors, so the version explains any doc/tool mismatch;
 below 3.6.0, tell the user to update before going on — `/host` needs it to switch
-previews on);
+previews on, and rollback needs 3.8.0);
 `list_servers` shows the server reachable and validated; `list_destinations` says how
 many Docker networks the server has, which decides whether every later create must
 carry `destination_uuid` — record the count in the platform table too. If the MCP

@@ -5,6 +5,27 @@ a GitHub release for each, with this entry as its notes and the Agent Skills dis
 index plus one artifact per skill attached. A version is never re-released with
 different skill content; CI and the publish script both refuse it.
 
+## 0.7.0 — 2026-10-03
+
+Follows Coolify MCP 3.8.0 and 3.9.0, summarised by its maintainer on
+[#2](https://github.com/KasperHonore/coolify-devops/issues/2).
+
+- `/host` can roll an application back. `deployment rollback_images` lists the image
+  tags Coolify still holds, and `deploy` with `rollback_to` returns to one; it then
+  verifies as after any deploy. It needs Coolify 4.3+ and MCP 3.8.0+, names the tag to
+  the user first (the MCP asks no confirmation), and says the next push builds over
+  it. The address block's `Rollback:` line now describes this. Not yet run live.
+- MCP 3.9.0 follows no redirects, so an `http://` base URL behind a proxy that
+  upgrades to https now fails every call. When a Coolify URL is typed without a
+  scheme, the scaffolder now adds `https://` to a bare domain and keeps `http://` for
+  `localhost`, an IP, or a host with a port. Setup says a domain's URL must be
+  `https://`.
+- `.mcp.json` passes `COOLIFY_UI_URL` through when it is set, so the MCP's dashboard
+  links open in the operator's browser rather than at `localhost`. The env-file
+  snippets list it as optional.
+- `docs/platform.md`: new rows for rollback, the redirect refusal, `COOLIFY_UI_URL`,
+  and `lines` being a whole number from 1 to 10000.
+
 ## 0.6.0 — 2026-10-01
 
 - `/host` switches per-PR preview deployments on itself
