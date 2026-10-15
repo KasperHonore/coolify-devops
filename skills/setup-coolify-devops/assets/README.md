@@ -43,10 +43,12 @@ run Claude Code asks you to approve the project MCP server. Then `/health` to lo
 ## Updating the skills
 
 ```bash
-npx skills update                                        # pulls the latest skills
+npx skills add KasperHonore/coolify-devops               # re-adds: refreshes what is installed, adds what is new
 node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render   # re-renders AGENTS.md and docs/ runbooks
 ```
 
-`AGENTS.md` and the runbooks in `docs/` are rendered from templates inside the setup
-skill; the two state files (`docs/infrastructure.md`, `docs/tailnet-state.md`) and
+Not `npx skills update`: it refreshes only names already in `skills-lock.json`, so a
+skill renamed upstream silently goes missing. `AGENTS.md` and the runbooks in `docs/`
+are rendered from templates inside the setup skill; the render also adds any new env
+passthrough to `.mcp.json`, keeping its existing values; the two state files (`docs/infrastructure.md`, `docs/tailnet-state.md`) and
 `stacks/` are yours and are never touched by a render.

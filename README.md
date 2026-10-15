@@ -58,10 +58,13 @@ than one agent, run this from the same directory:
 
 ```bash
 cd ~
-npx skills add KasperHonore/coolify-devops -a claude-code -y
+npx skills add KasperHonore/coolify-devops
 ```
 
-Choose the agents you use and install all five skills. Then start the agent and type
+The installer asks which agents to install for: choose the ones you use, and install
+all five skills. To skip the questions, name the agents, for example
+`-a codex -a cursor -y`; `-a claude-code` alone installs for Claude Code only and
+leaves every other agent with nothing. Then start the agent and type
 `/setup-coolify-devops`, or ask: "Run the setup-coolify-devops skill."
 
 Whichever route you choose, answer one question at a time. The agent asks where
@@ -121,7 +124,7 @@ flowchart LR
   S["/setup-coolify-devops<br/>once per server"] --> H["/host · /change-service · /grant-access<br/>as tools arrive and change"]
   H --> C["/health<br/>start of an ops day"]
   C --> H
-  B["AI Build Kit /ship<br/>on the builder's machine"] -. "repo url, then a push per release" .-> H
+  B["AI Build Kit /setup-hosting<br/>on the builder's machine"] -. "hosting request, then each merge through /implement" .-> H
 ```
 
 You run `/setup-coolify-devops` once. After that you go in wherever you actually are:
@@ -133,9 +136,11 @@ decides the lane and name with you, authors the deployment, and runs the tailnet
 verification steps. Later releases of a tool built from a git repo are a push:
 Coolify redeploys on its own.
 
-A tool built with AI Build Kit arrives through its `/ship`, which decides *whether*
-and *what* goes live. `/host` decides *where* and *how* it runs. The address is the
-only thing that crosses, carried by a person between two sessions on two machines.
+A tool built with AI Build Kit arrives through its `/setup-hosting`, which decides
+*whether* and *what* goes live. `/host` decides *where* and *how* it runs. The
+hosting request and the address block are the only things that cross, carried by a
+person between two sessions on two machines. (Since ai-build-kit v0.20.0, its
+`/ship` is `/setup-hosting` and its `/sync` is `/maintain`.)
 
 ## Examples
 
@@ -153,10 +158,10 @@ registrar's logs and the Tailscale control plane for the write-once port, and as
 you to open `https://<name>.<tailnet>.ts.net` in a browser. Then it writes the
 reference copy and the inventory.
 
-A tool that arrived from AI Build Kit. `/host` finds the hosting request its `/ship`
-wrote into the masterplan, skips the research, deploys from the repo with per-PR
+A tool that arrived from AI Build Kit. You paste in the hosting request its
+`/setup-hosting` wrote into the masterplan, and `/host` skips the research, deploys from the repo with per-PR
 previews and push-to-deploy, and prints an address block for the builder to paste
-back. Every later release is a push to `main`.
+back. Every later release is a merge to `main` through the kit's `/implement`.
 
 A config change. You type `/change-service` and say what should differ. The agent
 knows that editing a config-file mount through the obvious path rewrites a database
@@ -223,7 +228,7 @@ Public ones are curled from the open internet.
 Two simpler protections sit underneath. Secrets are never printed into a session and
 never stored in the repo: the MCP token comes from the shell, and per-tool secrets
 live in Coolify's env store, listed masked. And nothing goes live without a person
-between "ready" and "live": the builder's `/ship` and the server's `/host` are two
+between "ready" and "live": the builder's `/setup-hosting` and the server's `/host` are two
 sessions on two machines by design.
 
 ## How it compares
@@ -233,7 +238,7 @@ sessions on two machines by design.
 | Coolify's dashboard | your browser | clicks | Deploys anything in minutes. Remembers nothing about why, and cannot tell you the tailnet label you set is write-once. |
 | Terraform for Coolify | your machine | HCL | Declarative state for a provider that lags the API. `docs/iac.md` records why it was evaluated and not adopted. |
 | Dokku, Kamal, Coolify's CLI | your terminal | commands | A developer's deploy tool. Assumes you read logs and know Docker. |
-| AI Build Kit | the project repo | `/ship` | Decides when a tool is ready to rely on. Does not host it. |
+| AI Build Kit | the project repo | `/setup-hosting`, `/implement`, `/maintain` | Decides when a tool is ready to rely on. Does not host it. |
 | coolify-devops | the server | `/host`, `/change-service`, `/health`, `/grant-access` | The hosting discipline carried for you, with the deployment repo as the record. |
 
 ## FAQ
@@ -245,11 +250,14 @@ internal or public, look at the result in a browser, and say who may reach what.
 
 **How does it fit with AI Build Kit?**
 AI Build Kit builds and checks a tool in the project repo on your machine, and its
-`/ship` is the only command there that takes work live. coolify-devops runs on the
-server and is where that copy runs. `/ship` decides whether and what goes live;
-`/host` decides where and how it runs. `/ship` writes a hosting request into the
-masterplan, you run `/host` on the server, and `/host` hands back an address block to
-paste into the masterplan. After that, a release is a push.
+`/setup-hosting` is the command there that takes work live. coolify-devops runs on
+the server and is where that copy runs. `/setup-hosting` decides whether and what
+goes live; `/host` decides where and how it runs. `/setup-hosting` writes a hosting
+request into the masterplan, you paste it into `/host` on the server, and `/host`
+hands back an address block to paste into the masterplan. After that, a release is a
+merge through `/implement`, and the address block's `Deploys on merge:` line says
+whether that merge deploys on its own. The kit's `/maintain` compares the live copy
+with `main`. Since ai-build-kit v0.20.0 these replace its `/ship` and `/sync`.
 
 **Do I have to use AI Build Kit?**
 No. `/host` takes any git repo, Docker image, or product name. A repo built without
@@ -359,18 +367,30 @@ claude plugin update coolify-devops@coolify-devops --scope local
 ```
 
 then type `/coolify-devops:setup-coolify-devops`, which in an existing repo only
-re-renders. Skills CLI route:
+re-renders. Skills CLI route, the same command that installed it:
 
 ```bash
-npx skills update
+npx skills add KasperHonore/coolify-devops
 node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render
 ```
 
-`npx skills update` refreshes the skills already installed; a skill that was
-*renamed* upstream shows as "deleted upstream" and its new name is not picked up. Run
-`npx skills add KasperHonore/coolify-devops -a claude-code -y` again to get it, and
-`npx skills remove <old-name> -y` for the stale copy. The state files and `stacks/`
-are yours and are never touched by a render.
+Use `add`, not `npx skills update`: `update` refreshes only the names already in
+`skills-lock.json`, so a skill renamed upstream silently goes missing. `add`
+refreshes what is installed and adds what is new; remove a retired name with
+`npx skills remove <old-name> -y`. AI Build Kit updates the same way, so one pattern
+covers both kits. The render refreshes `AGENTS.md`, the runbooks in `docs/`, and
+`.mcp.json` (adding any variable a newer template passes through, keeping the rest of
+the file as it is). The state files and `stacks/` are yours and are never touched by
+a render.
+
+Upgrading a server set up before a given version:
+
+- **Before 0.7.0:** `.mcp.json` did not pass `COOLIFY_UI_URL`. A render from 0.8.0 on
+  adds it; set `COOLIFY_UI_URL` in your env file if the dashboard is reached at a
+  different address from `COOLIFY_BASE_URL`, then restart the session.
+- **Before 0.4.0:** the host node must advertise `tag:server`, or the tailnet
+  registrar fails every service with *node is not tagged*. Check with
+  `tailscale status --json | jq .Self.Tags`; `/setup-coolify-devops` has the fix.
 
 Each skill's frontmatter carries `license`, `compatibility` (what it needs from its
 environment) and `metadata.version`, which equals the package version. Each version

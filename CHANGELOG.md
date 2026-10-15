@@ -5,6 +5,40 @@ a GitHub release for each, with this entry as its notes and the Agent Skills dis
 index plus one artifact per skill attached. A version is never re-released with
 different skill content; CI and the publish script both refuse it.
 
+## 0.8.0 — 2026-10-15
+
+Lines up with [AI Build Kit](https://github.com/gwpicard/ai-build-kit) v0.20.
+
+- The kit's `/ship` is now `/setup-hosting` and its `/sync` is `/maintain` (kit
+  v0.20.0). `/host`, the README and the design notes use the new names, so `/host`
+  no longer tells anyone to run a command that is gone. A release is now each merge
+  through the kit's `/implement`.
+- `/host` reads `Healthcheck: none` in a hosting request as an answer, not a missing
+  field. The kit writes it for any tool not on one of its recipes. Instead of sending
+  the request back, `/host` ends with a findings block that says what the builder
+  needs: a health route such as `/api/health` returning 200, the app bound to
+  `0.0.0.0`, and `curl` or `wget` in the image, plus a `/shape` line to paste into
+  their repo.
+- The address block's `Later releases:` line is now `Deploys on merge: yes | no
+  (redeploy by hand: …)`. With `exposure.coolify_ui: tailnet` GitHub cannot reach
+  Coolify, so a merge does not deploy; the kit's `/implement` and `/maintain` would
+  otherwise find an older version running with nothing saying why.
+- `/host` takes the kit's `setup-hosting/references/hosting-request.md` as the
+  reference format and reads either wording by field name.
+- Updating on the skills CLI route is `npx skills add KasperHonore/coolify-devops`
+  then `--render`, the same pattern as the kit. `npx skills update` skips renamed
+  skills. The README, the rendered `AGENTS.md` and the deployment repo's README all
+  say so.
+- `--render` now adds any env passthrough the `.mcp.json` template has gained to an
+  existing `.mcp.json`, and leaves the existing values alone. A server set up before
+  0.7.0 gets `COOLIFY_UI_URL` on its next render. The README has upgrade notes for
+  servers set up before 0.7.0 and 0.4.0 (`tag:server` on the host node).
+- The README's skills CLI install line no longer passes `-a claude-code`, which
+  installed for Claude Code only and left Codex, Cursor and Gemini CLI with nothing.
+- `/health` checks disk use on the Docker filesystem (a finding at 80%, the lead
+  finding over 90%). `docs/infrastructure.md`'s housekeeping section is now a table
+  for disk use, the Docker cleanup settings and Sentinel.
+
 ## 0.7.0 — 2026-10-03
 
 Follows Coolify MCP 3.8.0 and 3.9.0, summarised by its maintainer on

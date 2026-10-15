@@ -1,25 +1,42 @@
 # The skill library as a distributable product: position
 
+Status, 2026-10-15: **lined up with AI Build Kit v0.20.** The kit renamed `/ship` to
+`/setup-hosting` and `/sync` to `/maintain` in v0.20.0 (2026-10-08), and now treats a
+merge through `/implement` as a deploy: `/implement` reads the live tool's health
+after a merge and `/maintain` compares the live version with `main`. Our side
+follows: the names are updated everywhere outside the changelog; `/host` accepts the
+kit's `Healthcheck: none` and answers it with a findings block naming the health
+route, bind and `curl` the builder needs, plus a `/shape` line to paste, rather than
+bouncing the request; the address block gains `Deploys on merge:`, so a server on
+`exposure.coolify_ui: tailnet` says up front that a merge does not deploy (the reading side
+is the kit maintainer's to add); `/host` treats the kit's
+`setup-hosting/references/hosting-request.md` as the reference format and accepts
+either wording. The update route is `npx skills add` then `--render`, as the kit's
+is, because `npx skills update` drops renamed skills; `--render` now also adds new
+env passthroughs to an existing `.mcp.json`, so 0.7.0's `COOLIFY_UI_URL` reaches
+servers set up earlier.
+
 Status, 2026-09-08, night: **the library is the hosting half of a pair, and ships
 both install routes.** Two decisions, both reversing or sharpening what stands below:
 
 - **Companion to [AI Build Kit](https://github.com/gwpicard/ai-build-kit).** That kit
   teaches non-developers to build a tool in a project repo on their own machine; its
-  `/ship` is the only command there that moves work to "the copy the team actually
-  uses", and it deliberately does not host. This library is where that copy runs,
+  `/setup-hosting` (`/ship` before kit v0.20.0) is the command there that moves work
+  to "the copy the team actually uses", and it deliberately does not host. This library is where that copy runs,
   on the server. The split, agreed in principle with its maintainer and still to be
-  settled in detail: *`/ship` decides whether and what goes live; `/host` decides
+  settled in detail: *`/setup-hosting` decides whether and what goes live; `/host` decides
   where and how it runs; the address is the only thing that crosses.* `/host` now
   recognises such a project (`masterplan.md` + `AGENTS.md` + `CHANGELOG.md`), reads
-  the hosting request `/ship` writes into the masterplan's "How it stays running" section instead
+  the hosting request `/setup-hosting` writes into the masterplan's "How it stays running" section instead
   of researching, deploys from the git source with the GitHub App so push-to-deploy exists
   (and per-PR previews, on the public lane only, switched on by `/host` through the MCP), and hands back an address block for the builder
   to paste. Their fit-check question "will anyone outside the team rely on it" *is*
   our lane question. Sharpened 2026-09-09 (third pass below): the request is
   *pasted*, never fetched — a private repo is unreadable from the server, by design —
-  and this side never edits a product repo. What is still theirs to add, proposed as [ai-build-kit#32](https://github.com/gwpicard/ai-build-kit/issues/32): `/ship` writing the request, and a
-  mention in their README and `/ship` step 4. What was decided not to do: `/ship`
-  calling the Coolify MCP from the laptop. A human between "ready" and "live", with a
+  and this side never edits a product repo. Proposed as [ai-build-kit#32](https://github.com/gwpicard/ai-build-kit/issues/32), and
+  done on the kit's side: `/setup-hosting` now writes the hosting request
+  (`setup-hosting/references/hosting-request.md`). What was decided not to do:
+  `/setup-hosting` calling the Coolify MCP from the laptop. A human between "ready" and "live", with a
   session on each machine, is the safety property both kits are built around; our
   `operator.on_host: false` binding would make it possible later if that changes.
 - **The Claude plugin route is back**, alongside the skills CLI, for parity with the
@@ -339,10 +356,10 @@ What the transcripts taught, all folded in this pass:
   no files, and the `gh` login that rescued the trial (a separate session installed
   it, past a dead IPv6 route) is exactly what the hand-off exists to avoid. The six
   questions the skill asked *were* the hosting request; the fix is to ask for them
-  as the block, filled in the repo's own session by `/ship` and pasted here — the
+  as the block, filled in the repo's own session by `/ship` (now `/setup-hosting`) and pasted here — the
   person is the transport both ways. Even #32's "fetch the masterplan raw" fails on
   a private repo; the request must be pasted, not fetched. Taken to #32, with a
-  hostability contract `/ship` checks before writing it.
+  hostability contract `/setup-hosting` checks before writing it.
 - **Three application facts the library had never met**: `custom_labels` is base64
   (the internal lane on an application is now proven, not "unproven"); Railpack
   produces a bare-`bash` restart loop for a Python repo with only a `pyproject.toml`

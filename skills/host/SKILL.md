@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops (instance.yaml and docs/ present) with the Coolify MCP configured. Needs network access to the Coolify API and to upstream project documentation.
 metadata:
   author: KasperHonore
-  version: "0.7.0"
+  version: "0.8.0"
 ---
 
 # Host a new resource
@@ -25,15 +25,16 @@ the values, and never hardcode a value from it back into this skill.
 **Is it an AI Build Kit project?** A repo built with
 [AI Build Kit](https://github.com/gwpicard/ai-build-kit) — the companion kit that runs
 on the *builder's* machine — carries `masterplan.md`, `AGENTS.md` and `CHANGELOG.md`
-at its root, and its `/ship` has already judged the work ready before anyone asks to
-host it. The way to know is the **hosting request**: `/ship` prints one and the
+at its root, and its `/setup-hosting` (called `/ship` before kit v0.20.0) has already
+judged the work ready before anyone asks to host it. The way to know is the
+**hosting request**: `/setup-hosting` prints one and the
 person pastes it into this session with the ask — nobody here reads their repo to
 find out (a private one cannot be read from here, and does not need to be). That
 changes three things below, each marked **AI Build Kit**: the pasted request
 replaces the research subagent (step 2), the shape is always an application from
 the git source (step 3a), and the run ends with an address block — or a findings
 block — for the builder to paste back (step 7). The split, so neither kit oversteps:
-their `/ship` decides *whether* and *what* goes live; this skill decides *where* and
+their `/setup-hosting` decides *whether* and *what* goes live; this skill decides *where* and
 *how* it runs; the request and the address are the only things that cross, and the
 person carries both. **This skill never edits a product repo** — not a Dockerfile,
 not a bind address, not a PR. Code that will not host is a finding for the builder.
@@ -67,7 +68,7 @@ not a bind address, not a PR. Code that will not host is a finding for the build
 ## 2. Research the upstream before writing anything
 
 **AI Build Kit: the hosting request is the report.** It arrives **pasted into this
-session**; `/ship` also writes it into the "How it stays running" section of their
+session**; `/setup-hosting` also writes it into the "How it stays running" section of their
 `masterplan.md`, and fetching it raw from there is a convenience for a *public* repo
 only. It carries: the repo URL and branch, the recommended lane, the port the
 container listens on, the env var *names* (never values — those go into Coolify's
@@ -77,8 +78,18 @@ whose image carries `curl` or `wget`, or for Railpack a lock file or
 `requirements.txt` plus a `Procfile`), and a server that binds `0.0.0.0` or reads
 `HOST`/`PORT`. That is
 the deployability report: do not spawn the research subagent, and do not read the
-code. A request with a field missing goes back for that field. No request at all —
-a `/ship` predating the hand-off, or a repo no kit built — means handing the person
+code. The kit's own format is `setup-hosting/references/hosting-request.md` in AI
+Build Kit; it differs from the block below in wording only (a `Hosting request` title
+line, `internal (private network) | public (internet)`, "lock file or
+requirements.txt, plus a Procfile"), so read either by its field names. A field that
+is **absent** goes back for that field. A field that says **`none`** is an answer,
+not a gap: `Persist: none` means stateless, and `Healthcheck: none` — what the kit
+writes for any tool not on one of its recipes — means the tool has no health route
+yet. That one cannot host here (step 3a requires a passing healthcheck), so do not
+deploy and do not bounce the request: end the run with the findings block in step 7,
+`Needs:` filled from the health-route list there, so the builder gets the fix and
+not a question. No request at all — a pre-v0.20 `/ship` without the hand-off, or a
+repo no kit built — means handing the person
 this block to have filled in *the repo's own session* and stopping until it comes
 back; the fields are a minute's work there and unanswerable here (a trial asked
 them as six questions of someone who could not know):
@@ -89,8 +100,8 @@ Lane:          internal | public
 Port:          <port the container listens on>
 Env vars:      <names only>
 Persist:       <paths that must survive a restart | none>
-Healthcheck:   <path>
-Build:         Dockerfile at root, image has curl or wget | uv.lock or requirements.txt + Procfile (Railpack) | neither yet
+Healthcheck:   <path, or none>
+Build:         Dockerfile at root, image has curl or wget | lock file or requirements.txt + Procfile (Railpack) | neither yet
 Bind:          0.0.0.0 | reads HOST and PORT | 127.0.0.1 (not hostable yet)
 ```
 
@@ -173,10 +184,11 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
   or `internet`, and cannot when it is `tailnet` — say so up front rather than
   letting the first push silently not deploy (`docs/platform.md`, *The Coolify
   dashboard and push-to-deploy*). **AI Build Kit:** use the GitHub App source.
-  Push-to-deploy on the default branch is what every later `/ship` relies on — a
-  first launch here, then a push per release. Without it the hand-off degrades to a
-  manual redeploy per release, which goes in the address block (step 7) rather than
-  being discovered at the second release.
+  Since kit v0.20 a merge to the default branch *is* a release: their `/implement`
+  reads the tool's health after a merge, and their `/maintain` compares the live
+  version with `main`. Without push-to-deploy both find an older version running, so
+  the address block's `Deploys on merge:` line (step 7) says `no` and how to
+  redeploy, rather than leaving it to be discovered at the second release.
 - **Preview deployments are off by default and exist on the public lane only.**
   Coolify creates every application with `is_preview_deployments_enabled: false`; a
   PR webhook then answers "Preview deployments disabled." and nothing builds. When
@@ -399,8 +411,9 @@ on — a "no" is a decision, not an open item.
    tailnet sees the new service immediately.
 5. Commit straight to `main`.
 6. **AI Build Kit: hand back the address block.** Print it verbatim for the builder
-   to paste into the "How it stays running" section of their `masterplan.md` (their `/sync`
-   keeps it current; this repo never writes into theirs):
+   to paste into the "How it stays running" section of their `masterplan.md` (their
+   `/setup-hosting` records it and `/maintain` keeps it current; this repo never
+   writes into theirs):
 
    ```
    Hosted by coolify-devops at <Coolify URL>
@@ -410,7 +423,10 @@ on — a "no" is a decision, not an open item.
                    | none: <why: internal lane (Coolify drops custom labels on PR
                      deploys; no app domain, no preview URL) | dashboard not reachable by GitHub
                      | not wanted | not a GitHub App source>
-   Later releases: push to <branch>; Coolify redeploys | manual redeploy — say why
+   Deploys on merge: yes, a merge to <branch> redeploys
+                   | no (redeploy by hand: ask the server operator to run /host
+                     "redeploy <name>"; <why: dashboard not reachable by GitHub
+                     (exposure.coolify_ui: tailnet) | not a GitHub App source>)
    Rollback:       deploy rollback_to an earlier image tag (deployment rollback_images); holds until the next push
    Access:         <who can reach it, per docs/tailnet-state.md | anyone on the internet>
    Backups:        <the decision from step 6>
@@ -419,7 +435,9 @@ on — a "no" is a decision, not an open item.
 
    Never write a preview address that step 5 has not seen: a `Preview:` line that
    promises PR builds while the flag is off is the failure this line exists to stop.
-   Their `/ship` reads that block on every later launch, and their
+   `Deploys on merge:` is read from `exposure.coolify_ui` and the source, never
+   assumed: `yes` only with the GitHub App source and `github` or `internet`. Their
+   `/setup-hosting` reads that block on every later visit, and their
    operational-readiness step counts rollback, access and backups as answered by it.
 
    A deploy that failed on the code ends the run with this instead — no bookkeeping
@@ -431,4 +449,20 @@ on — a "no" is a decision, not an open item.
    Finding:   <one line, quoting the deployment log>
    Needs:     <the request field it violates: Build (Dockerfile with curl, or lock file + Procfile) | Bind 0.0.0.0 or HOST/PORT | …>
    Then:      push to <branch>; Coolify redeploys and /host verifies
+   ```
+
+   For **`Healthcheck: none`** there is no deployment log to quote: `Finding:` is
+   "the hosting request has no health route; Coolify's zero-downtime deploys need
+   one", `Then:` is "merge, then send the updated request back here", and `Needs:`
+   lists all three facts Coolify's check depends on, each as a line the builder can
+   act on:
+   - a health route such as `/api/health` that answers `200` without signing in and
+     without calling anything slow;
+   - the app bound to `0.0.0.0` (or reading `HOST` and `PORT`), not `127.0.0.1`;
+   - `curl` or `wget` in the image (a repo's own Dockerfile; Railpack adds both);
+
+   and ends with a line to paste into their repo's session:
+
+   ```
+   /shape Add a health route at /api/health that returns 200 with no sign-in, make the server listen on 0.0.0.0 (or read HOST and PORT), and make sure the image has curl or wget, so the server can check the tool before switching traffic to it.
    ```

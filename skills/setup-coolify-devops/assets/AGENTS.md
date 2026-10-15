@@ -229,7 +229,7 @@ the rules are in `docs/conventions.md`.{{/IS_LIBRARY}}{{^IS_LIBRARY}} If the rep
 a remote, push after every commit.
 - **`AGENTS.md` and the runbooks in `docs/` are rendered outputs.** They come from the
 templates bundled in the setup skill, rendered from `instance.yaml`. Do not hand-edit
-them; change `instance.yaml` (or update the skills with `npx skills update`) and run
+them; change `instance.yaml` (or update the skills with `npx skills add KasperHonore/coolify-devops`) and run
 `node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render`. The two state files,
 `docs/infrastructure.md` and `docs/tailnet-state.md`, are hand-maintained and never
 re-rendered.{{/IS_LIBRARY}}

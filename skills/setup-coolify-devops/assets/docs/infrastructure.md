@@ -61,7 +61,11 @@ Keep `delete_unused_volumes` and `delete_unused_networks` **off** in server sett
 
 ## Housekeeping in place
 
-_(Sentinel, cleanup schedules, disk alerts — record what `get_server` shows.)_
+| What | Setting | Last checked |
+|---|---|---|
+| Disk use (`/health` step 1b) | _(percentage of the Docker filesystem)_ | |
+| Docker cleanup | _(Server → Settings: threshold and schedule, as `get_server` shows them)_ | |
+| Sentinel / disk alerts | _(on or off, and where alerts go)_ | |
 
 ---
 

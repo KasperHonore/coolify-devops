@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops with the Coolify MCP configured. Read-only; needs network access to the Coolify API and, optionally, the Tailscale and Hetzner APIs.
 metadata:
   author: KasperHonore
-  version: "0.7.0"
+  version: "0.8.0"
 ---
 
 # Estate health sweep
@@ -27,6 +27,24 @@ territory and a separate decision.
 - **Which `running:unknown` statuses are expected (images without healthchecks) and
   which are real signal is documented in the inventory section of
   `docs/infrastructure.md`** — read it and do not re-litigate the expected ones.
+
+## 1b. Disk space
+
+A full disk is the failure that takes everything down at once (builds, databases,
+Docker itself), and it is cheap to see coming.
+
+- **On the host** (`operator.on_host` true in `instance.yaml`): `df -P / /var/lib/docker`
+  in the shell. Read-only, and the one shell command this sweep runs.
+- **Elsewhere:** `scheduled_tasks` `run_once` with `df -P /` in the canary's container
+  (`canary` in `instance.yaml`). A container's `/` is Docker's overlay, so it reports
+  the host filesystem Docker writes to, which is the one that fills. `run_once` deletes its
+  task when it finishes, so the sweep stays read-only in effect.
+
+Report use as a percentage. Under 80% is one line in the table; 80–90% is a finding
+with the cleanup to consider (Coolify's *Server → Settings* cleanup threshold, old
+images); over 90% leads the report, ahead of anything but an open port. Compare with
+what "Housekeeping in place" in `docs/infrastructure.md` records, and report a change
+in the cleanup settings as drift. Never delete anything to make room from here.
 
 ## 2. Reachability
 
@@ -84,7 +102,8 @@ a sweep; which side is right is a decision for the user or a `/change-service` s
 ## 4. Report
 
 One table — resource, Coolify status, reachability check, drift — leading with anything
-actually broken (an unexpected open port first of all), then drift, then the
+actually broken (an unexpected open port first of all, then a disk over 90%), then
+disk use and drift, then the
 expected-unknowns marked as such. If nothing is
 wrong, say so in one line; do not pad. Note anything the sweep could not check and why
 (e.g. internal browser-level reachability needs a human on the tailnet).

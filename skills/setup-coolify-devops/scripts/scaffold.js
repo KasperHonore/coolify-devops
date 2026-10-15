@@ -35,7 +35,8 @@
 //   --render                re-render ./AGENTS.md and the runbooks in ./docs/ from ./instance.yaml
 //   --set a.b=value         (with --render) update one instance.yaml key first, e.g.
 //                           --set coolify.version_observed=4.3.18 — keeps the file's comments intact
-//                           (after `npx skills update`, or after editing instance.yaml); never
+//                           (after `npx skills add` re-adds the skills, or after editing instance.yaml);
+//                           adds new env passthroughs to an existing .mcp.json, keeping its values; never
 //                           touches the state files docs/infrastructure.md and docs/tailnet-state.md
 //   --help
 
@@ -246,6 +247,25 @@ function renderRunbooks(targetDocs, vars) {
   }
 }
 
+// .mcp.json is not rendered over: the operator may have changed it. A render only adds
+// the env passthroughs a newer template carries (COOLIFY_UI_URL came in 0.7.0) to the
+// server that runs the Coolify MCP, and leaves every existing key and value alone.
+function mergeMcpJson(file) {
+  let cur;
+  try { cur = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { console.error(`.mcp.json is not valid JSON; left as is`); return []; }
+  const tplServers = JSON.parse(fs.readFileSync(path.join(TEMPLATE_DIR, 'mcp.json'), 'utf8')).mcpServers;
+  const servers = cur.mcpServers || {};
+  const added = [];
+  for (const [name, tpl] of Object.entries(tplServers)) {
+    const key = Object.keys(servers).find(k => (servers[k].args || []).some(a => String(a).includes('coolify-mcp'))) || (servers[name] && name);
+    if (!key) continue;
+    const env = servers[key].env = servers[key].env || {};
+    for (const [k, v] of Object.entries(tpl.env || {})) if (!(k in env)) { env[k] = v; added.push(k); }
+  }
+  if (added.length) fs.writeFileSync(file, JSON.stringify(cur, null, 2) + '\n');
+  return added;
+}
+
 // ---------- maintainer mode: re-render this repo's AGENTS.md and runbooks ----------
 
 function renderMode(args) {
@@ -264,7 +284,8 @@ function renderMode(args) {
   if (!vars.IS_LIBRARY) fs.writeFileSync(path.join(cwd, '.gitignore'), fs.readFileSync(path.join(TEMPLATE_DIR, '_gitignore'), 'utf8'));
   renderRunbooks(path.join(cwd, 'docs'), vars);
   const seeded = seedStacks(cwd, vars);
-  console.log(`Rendered AGENTS.md and the runbooks in docs/ from instance.yaml${vars.IS_LIBRARY ? ' (library author mode)' : ''}${seeded.length ? '; seeded stacks/' + seeded.join(', stacks/') : ''}`);
+  const mcpAdded = vars.HAS_MCP_JSON ? mergeMcpJson(path.join(cwd, '.mcp.json')) : [];
+  console.log(`Rendered AGENTS.md and the runbooks in docs/ from instance.yaml${vars.IS_LIBRARY ? ' (library author mode)' : ''}${seeded.length ? '; seeded stacks/' + seeded.join(', stacks/') : ''}${mcpAdded.length ? '; added ' + mcpAdded.join(', ') + ' to .mcp.json' : ''}`);
 }
 
 // ---------- scaffold ----------
