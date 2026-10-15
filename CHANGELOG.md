@@ -5,6 +5,19 @@ a GitHub release for each, with this entry as its notes and the Agent Skills dis
 index plus one artifact per skill attached. A version is never re-released with
 different skill content; CI and the publish script both refuse it.
 
+## 0.8.1 — 2026-10-15
+
+- `/host` has a step for redeploying an application after a merge that did not
+  deploy (the address block said `Deploys on merge: no`). It finds the application,
+  checks that a webhook has not already queued a build, names the app and commit to
+  the user, deploys, and checks that the merge commit is what went live: from the
+  health route when it reports one (`SOURCE_COMMIT` on AI Build Kit recipes), or
+  from the finished deployment otherwise. "Redeploy X" is now one of the phrases
+  that starts `/host`.
+- The address block's `Deploys on merge: no` line also names Coolify's **Redeploy**
+  button, which works when nobody has an agent session open on the server. `/host`
+  stays the recommended route because the button does not check the commit.
+
 ## 0.8.0 — 2026-10-15
 
 Lines up with [AI Build Kit](https://github.com/gwpicard/ai-build-kit) v0.20.

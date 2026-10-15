@@ -1,11 +1,11 @@
 ---
 name: host
-description: Host something new on the Coolify server, end to end — from a git repo, Docker image, or product name to a verified, reachable service. Use when the user says "host X", "deploy X", "spin up X", "put X on the tailnet", or "make X public", or "roll back X" after a bad release. Handles lane choice (internal/public), naming, compose authoring, Coolify creation, deployment, verification, rollback, and repo bookkeeping.
+description: Host something new on the Coolify server, end to end — from a git repo, Docker image, or product name to a verified, reachable service. Use when the user says "host X", "deploy X", "spin up X", "put X on the tailnet", or "make X public", "roll back X" after a bad release, or "redeploy X" after a merge that did not deploy. Handles lane choice (internal/public), naming, compose authoring, Coolify creation, deployment, verification, rollback, redeploy, and repo bookkeeping.
 license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops (instance.yaml and docs/ present) with the Coolify MCP configured. Needs network access to the Coolify API and to upstream project documentation.
 metadata:
   author: KasperHonore
-  version: "0.8.0"
+  version: "0.8.1"
 ---
 
 # Host a new resource
@@ -359,6 +359,21 @@ htpasswd hash and the login never matches.
    - Not for services (no deployment history) and not for a first deploy (nothing to
      go back to). A deploy that failed on the code still ends with the findings
      block in step 7.
+6. **Redeploying an application after a merge** (its address block says
+   `Deploys on merge: no`, so nothing built the merge): look up the application uuid
+   by name (`list_applications`), and check `deployment list_for_app` first so a build
+   a webhook already queued is not stacked (above). Then `deploy` with the uuid,
+   `wait: true` and `timeout_seconds` under 120, re-polling with `deployment get`,
+   and verify as in step 5. The proof that the merge is live: when the health route
+   reports a commit (AI Build Kit recipes read it from `SOURCE_COMMIT`), it equals the
+   merge commit on the branch; when it reports none, the finished deployment's commit
+   in `deployment list_for_app` does. On the internal lane the health route does not
+   resolve from here, so the deployment's commit is the check and the browser load is
+   the human's, as in step 5.
+   - Like `deploy` and `rollback_to`, it is not confirmation-guarded: name the app and
+     the commit to the user before calling it.
+   - Not for services (that is `/change-service`) and not for a first deploy (that is
+     the rest of this skill). Nothing changes in the repo, so step 7 is skipped.
 
 ## 5. Verify — a green deploy proves nothing
 
@@ -424,9 +439,10 @@ on — a "no" is a decision, not an open item.
                      deploys; no app domain, no preview URL) | dashboard not reachable by GitHub
                      | not wanted | not a GitHub App source>
    Deploys on merge: yes, a merge to <branch> redeploys
-                   | no (redeploy by hand: ask the server operator to run /host
-                     "redeploy <name>"; <why: dashboard not reachable by GitHub
-                     (exposure.coolify_ui: tailnet) | not a GitHub App source>)
+                   | no (after each merge, the server operator runs /host "redeploy <name>",
+                     or presses Redeploy on the application in Coolify; <why: dashboard
+                     not reachable by GitHub (exposure.coolify_ui: tailnet) | not a
+                     GitHub App source>)
    Rollback:       deploy rollback_to an earlier image tag (deployment rollback_images); holds until the next push
    Access:         <who can reach it, per docs/tailnet-state.md | anyone on the internet>
    Backups:        <the decision from step 6>
@@ -436,7 +452,10 @@ on — a "no" is a decision, not an open item.
    Never write a preview address that step 5 has not seen: a `Preview:` line that
    promises PR builds while the flag is off is the failure this line exists to stop.
    `Deploys on merge:` is read from `exposure.coolify_ui` and the source, never
-   assumed: `yes` only with the GitHub App source and `github` or `internet`. Their
+   assumed: `yes` only with the GitHub App source and `github` or `internet`. On `no`,
+   `/host` (step 4.6) is the recommended route because it checks the commit that went
+   live; the dashboard's **Redeploy** button skips that check, but works when nobody
+   has an agent session open on the server. Their
    `/setup-hosting` reads that block on every later visit, and their
    operational-readiness step counts rollback, access and backups as answered by it.
 
