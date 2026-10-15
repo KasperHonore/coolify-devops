@@ -5,6 +5,27 @@ a GitHub release for each, with this entry as its notes and the Agent Skills dis
 index plus one artifact per skill attached. A version is never re-released with
 different skill content; CI and the publish script both refuse it.
 
+## 0.8.2 — 2026-10-15
+
+`/host` reads two new lines in the AI Build Kit hosting request.
+
+- `Build vars:` lists env vars the build itself reads, such as Next.js's
+  `NEXT_PUBLIC_*`. `/host` creates each one as a build-time and runtime variable, and
+  does not deploy until the person has saved its value in Coolify. Created
+  runtime-only, as before, the value reached the container but the built app shipped
+  with it empty. Values still never appear in the request.
+- `Previews:` decides per-PR previews. Only a line starting `yes` switches them on;
+  `no` or no line leaves them off. When the line names a separate backend (for
+  example a second Supabase project), `/host` also creates each variable in Coolify's
+  preview scope for the person to fill from it, so previews do not build against
+  production data. When it names Basic Authentication, the run's report tells the
+  person to switch it on for the application, since the Coolify MCP cannot set it,
+  and the address block's `Preview:` line records whether that is done.
+- Both lines are optional, so a request from an older kit still reads as complete.
+- The address and findings blocks moved to `skills/host/references/hand-back.md`,
+  which `/host` reads at the hand-back step, keeping `SKILL.md` under 500 lines. The
+  address block gains a `Build vars:` line.
+
 ## 0.8.1 — 2026-10-15
 
 - `/host` has a step for redeploying an application after a merge that did not

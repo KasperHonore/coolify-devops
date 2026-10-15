@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops (instance.yaml and docs/ present) with the Coolify MCP configured. Needs network access to the Coolify API and to upstream project documentation.
 metadata:
   author: KasperHonore
-  version: "0.8.1"
+  version: "0.8.2"
 ---
 
 # Host a new resource
@@ -55,8 +55,8 @@ not a bind address, not a PR. Code that will not host is a finding for the build
   exposure is the user's call, not the skill's. **AI Build Kit:** the hosting request
   names a recommended lane, derived from their fit check ("will anyone outside the
   team sign in or rely on it?" is this question in their words). Offer it as the
-  recommendation inside the same one question — still ask. If the request wants
-  per-PR previews, say inside that question that only the public lane can have them
+  recommendation inside the same one question — still ask. If the request's
+  `Previews:` line starts with `yes`, say inside that question that only the public lane can have them
   (step 3a) — a trade-off for the user to weigh, not a reason to pick public for them.
   - Internal → project `projects.internal`, address `https://<name>.<domains.internal_suffix>`
   - Public → project `projects.public`, address `https://<name>.<domains.public_suffix>`
@@ -79,10 +79,19 @@ whose image carries `curl` or `wget`, or for Railpack a lock file or
 `HOST`/`PORT`. That is
 the deployability report: do not spawn the research subagent, and do not read the
 code. The kit's own format is `setup-hosting/references/hosting-request.md` in AI
-Build Kit; it differs from the block below in wording only (a `Hosting request` title
-line, `internal (private network) | public (internet)`, "lock file or
-requirements.txt, plus a Procfile"), so read either by its field names. A field that
-is **absent** goes back for that field. A field that says **`none`** is an answer,
+Build Kit; read either by its field names. It differs from the block below in:
+- wording only: a `Hosting request` title line, `internal (private network) | public
+  (internet)`, "lock file or requirements.txt, plus a Procfile";
+- `Build vars: <names>`: env vars the build itself reads (`NEXT_PUBLIC_*` in Next.js,
+  `VITE_*` in Vite), baked into the bundle, so they are created build-time as well
+  as runtime (step 3a). A name here is not repeated under `Env vars:`;
+- `Previews: no | yes, <what the preview needs>`, for example `yes, second Supabase
+  project <ref>, Basic Authentication in front`. Only a line starting `yes` switches
+  previews on (step 3a).
+
+These two lines are optional: a request without them (older kits) is complete, and
+reads as no build vars and `Previews: no`. Any other field that is **absent** goes
+back for that field. A field that says **`none`** is an answer,
 not a gap: `Persist: none` means stateless, and `Healthcheck: none` — what the kit
 writes for any tool not on one of its recipes — means the tool has no health route
 yet. That one cannot host here (step 3a requires a passing healthcheck), so do not
@@ -99,6 +108,8 @@ Repo:          <url>, branch <branch>
 Lane:          internal | public
 Port:          <port the container listens on>
 Env vars:      <names only>
+Build vars:    <names the build reads, e.g. NEXT_PUBLIC_*, or none>
+Previews:      no | yes, <what the preview needs>
 Persist:       <paths that must survive a restart | none>
 Healthcheck:   <path, or none>
 Build:         Dockerfile at root, image has curl or wget | lock file or requirements.txt + Procfile (Railpack) | neither yet
@@ -191,8 +202,10 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
   redeploy, rather than leaving it to be discovered at the second release.
 - **Preview deployments are off by default and exist on the public lane only.**
   Coolify creates every application with `is_preview_deployments_enabled: false`; a
-  PR webhook then answers "Preview deployments disabled." and nothing builds. When
-  the request or the user wants previews:
+  PR webhook then answers "Preview deployments disabled." and nothing builds.
+  **AI Build Kit:** the request's `Previews:` line decides — on only when it starts
+  with `yes`, off for `no` or no line. Without a request, the user decides. When
+  previews are wanted:
   - **Public lane:** switch them on through the MCP — `is_preview_deployments_enabled:
     true` on the `application` call that sets the FQDN (step 4), then read back
     `settings.is_preview_deployments_enabled` with `get_application` and verify
@@ -202,6 +215,15 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
     webhook needs GitHub to reach Coolify exactly as push-to-deploy does: with
     `exposure.coolify_ui: tailnet`, previews cannot trigger, so leave the flag off
     and write `none`.
+  - **What the `yes` names comes with it.** A separate backend (`second Supabase
+    project <ref>`): create each `Env vars:` and `Build vars:` name a second time
+    with `is_preview: true`, the same build/runtime flags and a `REPLACE_ME`
+    placeholder, and tell the person to fill those from that project, so no preview
+    builds against production data. **Basic Authentication in front**: the MCP
+    cannot set it, so it goes in the run's report as a step for the person — the
+    application's *General* page, **Basic Authentication**, before the first PR —
+    and the address block's `Preview:` line says `basic auth: set by hand` until
+    they confirm it.
   - **MCP too old:** the field needs `@masonator/coolify-mcp` 3.6.0 or later. If
     `get_mcp_version` is below that, the result notes the flag was ignored, or the
     read-back is still `false`, stop and tell the user to update the MCP —
@@ -253,6 +275,11 @@ platform" is a valid outcome, and far cheaper before a deploy than after.
 - **A secret the human sets in the UI**: `env_vars create` refuses an empty value, so
   create the key with a `REPLACE_ME` placeholder, `is_runtime: true`, `is_buildtime:
   false`, `is_shown_once: true`, hand over the exact page, and restart once they save.
+  **A name under `Build vars:`** is created the same way but with `is_buildtime:
+  true` and `is_runtime: true`: a runtime-only value reaches the container but not
+  the build, so the bundle ships with it empty. Its value is baked in at build time,
+  so do not deploy until the person has saved it (a placeholder would be baked in),
+  and after a later change it needs a redeploy, not a restart.
 
 ### 3b. Service — third-party compose
 
@@ -425,63 +452,11 @@ on — a "no" is a decision, not an open item.
    `docs/tailnet-state.md` ("Where we are today"); under a blanket grant the whole
    tailnet sees the new service immediately.
 5. Commit straight to `main`.
-6. **AI Build Kit: hand back the address block.** Print it verbatim for the builder
-   to paste into the "How it stays running" section of their `masterplan.md` (their
-   `/setup-hosting` records it and `/maintain` keeps it current; this repo never
-   writes into theirs):
-
-   ```
-   Hosted by coolify-devops at <Coolify URL>
-   Address:        https://<name>.<suffix>                (lane: internal | public)
-   Preview:        per-PR at https://<pr_id>.<name>.<suffix>, seen on PR #<n>
-                   | enabled, not yet seen: confirm on the first PR
-                   | none: <why: internal lane (Coolify drops custom labels on PR
-                     deploys; no app domain, no preview URL) | dashboard not reachable by GitHub
-                     | not wanted | not a GitHub App source>
-   Deploys on merge: yes, a merge to <branch> redeploys
-                   | no (after each merge, the server operator runs /host "redeploy <name>",
-                     or presses Redeploy on the application in Coolify; <why: dashboard
-                     not reachable by GitHub (exposure.coolify_ui: tailnet) | not a
-                     GitHub App source>)
-   Rollback:       deploy rollback_to an earlier image tag (deployment rollback_images); holds until the next push
-   Access:         <who can reach it, per docs/tailnet-state.md | anyone on the internet>
-   Backups:        <the decision from step 6>
-   Secrets:        <env var names>, held in Coolify's env store for this resource
-   ```
-
-   Never write a preview address that step 5 has not seen: a `Preview:` line that
-   promises PR builds while the flag is off is the failure this line exists to stop.
-   `Deploys on merge:` is read from `exposure.coolify_ui` and the source, never
-   assumed: `yes` only with the GitHub App source and `github` or `internet`. On `no`,
-   `/host` (step 4.6) is the recommended route because it checks the commit that went
-   live; the dashboard's **Redeploy** button skips that check, but works when nobody
-   has an agent session open on the server. Their
-   `/setup-hosting` reads that block on every later visit, and their
-   operational-readiness step counts rollback, access and backups as answered by it.
-
-   A deploy that failed on the code ends the run with this instead — no bookkeeping
-   beyond a line in `docs/infrastructure.md` — and resumes at step 4 when the push
-   lands:
-
-   ```
-   Not hosted yet — coolify-devops at <Coolify URL>
-   Finding:   <one line, quoting the deployment log>
-   Needs:     <the request field it violates: Build (Dockerfile with curl, or lock file + Procfile) | Bind 0.0.0.0 or HOST/PORT | …>
-   Then:      push to <branch>; Coolify redeploys and /host verifies
-   ```
-
-   For **`Healthcheck: none`** there is no deployment log to quote: `Finding:` is
-   "the hosting request has no health route; Coolify's zero-downtime deploys need
-   one", `Then:` is "merge, then send the updated request back here", and `Needs:`
-   lists all three facts Coolify's check depends on, each as a line the builder can
-   act on:
-   - a health route such as `/api/health` that answers `200` without signing in and
-     without calling anything slow;
-   - the app bound to `0.0.0.0` (or reading `HOST` and `PORT`), not `127.0.0.1`;
-   - `curl` or `wget` in the image (a repo's own Dockerfile; Railpack adds both);
-
-   and ends with a line to paste into their repo's session:
-
-   ```
-   /shape Add a health route at /api/health that returns 200 with no sign-in, make the server listen on 0.0.0.0 (or read HOST and PORT), and make sure the image has curl or wget, so the server can check the tool before switching traffic to it.
-   ```
+6. **AI Build Kit: hand back a block for the builder.** Read
+   `references/hand-back.md` now and print the block it describes: the **address
+   block** after a verified deploy, or the **findings block** when the code will not
+   host (a failed deploy, or `Healthcheck: none`). A findings block ends the run with
+   no bookkeeping beyond a line in `docs/infrastructure.md`, and the run resumes at
+   step 4 when the push lands. Never write a preview address that step 5 has not
+   seen, and read `Deploys on merge:` from `exposure.coolify_ui` and the source,
+   never assume it.
