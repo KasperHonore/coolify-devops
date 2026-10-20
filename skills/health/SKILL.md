@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops with the Coolify MCP configured. Read-only; needs network access to the Coolify API and, optionally, the Tailscale and Hetzner APIs.
 metadata:
   author: KasperHonore
-  version: "0.8.2"
+  version: "0.9.0"
 ---
 
 # Estate health sweep
@@ -20,10 +20,19 @@ territory and a separate decision.
 - `find_issues` flags every healthcheck-less service as a `running:unknown` warning on
   every run — cross-check its list against the expected set before reporting any of
   them as a finding. A warning about an **available Traefik update** on the server is
-  real signal, not noise — report it (fixing is a `/change-service` decision).
+  real signal, not noise — report it as a dashboard step for the person (Servers → Proxy;
+  no MCP tool updates the proxy, `docs/platform.md`, MCP rough edges).
 - `get_version` and `get_mcp_version`: if either differs from what
   `docs/infrastructure.md`'s platform table records, report the drift (the MCP's tool
   names have changed between majors before — see "Tool surface" there).
+- **Is the MCP behind its latest release?** `npm view @masonator/coolify-mcp version`
+  from the shell, against `get_mcp_version`. Equal: say so in one line. Behind: a
+  finding with both versions, and the fix is a session restart, since `.mcp.json` runs
+  `@latest` and npx resolves it again at start. Still behind after a restart means the
+  session is not running `.mcp.json`'s entry: `claude mcp get coolify` shows a local or
+  user entry pinned to a version, or a stale override (`AGENTS.md`, *Watch out for*).
+  Behind by a major: read the release notes before the restart, because tool names
+  have changed between majors. No network to npm: say the check was skipped.
 - **Which `running:unknown` statuses are expected (images without healthchecks) and
   which are real signal is documented in the inventory section of
   `docs/infrastructure.md`** — read it and do not re-litigate the expected ones.
@@ -73,7 +82,7 @@ Two checks, both read-only, both cheap; skip neither.
   only a read token. Without a token, fall back to the probe:
 - **Probe the public IP from outside.** `get_server` for the address, then the loop in
   `/setup-coolify-devops` step 2 (`</dev/tcp/<ip>/<port>` with a 3 s timeout) over 22, 80, 443,
-  3000, 8000, 6001, 6002 — run here only if this machine is neither the host nor on
+  3000, 8000, 6001, 6002, 8080 — run here only if this machine is neither the host nor on
   the tailnet (`operator.on_host` false and `domains.operator_tailnet` empty in
   `instance.yaml`); otherwise the loop is a prepared step for a human on a machine
   off the tailnet, and a sweep that could not get the answer says so rather than

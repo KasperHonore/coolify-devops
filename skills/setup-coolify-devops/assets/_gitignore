@@ -10,8 +10,8 @@
 !CLAUDE.md
 !README.md
 !instance.yaml
-!skills-lock.json
-!docs/
+{{#INSTALL_SKILLS_CLI}}!skills-lock.json
+{{/INSTALL_SKILLS_CLI}}!docs/
 !docs/**
 !stacks/
 !stacks/**

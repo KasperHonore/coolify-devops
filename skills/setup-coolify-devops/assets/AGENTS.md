@@ -173,7 +173,14 @@ on a pivot, update it first and re-render this file. The full layering rules are
 
 **Skills are living runbooks.** When a session learns something the hard way, fold it
 into the skill that should have prevented it — in the same commit as the fix, the same
-way `stacks/` copies are updated with the change. Before authoring a *new* skill, watch
+way `stacks/` copies are updated with the change. **Never fold a lesson into a rendered
+file**: this file and the runbooks in `docs/` are overwritten on the next render, and
+three field-tested lessons were lost that way. A lesson about the platform goes
+upstream, into the templates in the coolify-devops library{{#IS_LIBRARY}}
+(`library/skills/setup-coolify-devops/assets/`){{/IS_LIBRARY}}{{^IS_LIBRARY}} (an issue or PR on
+`KasperHonore/coolify-devops`; until it lands, note it under *Known gaps* in
+`docs/infrastructure.md`){{/IS_LIBRARY}}; a fact about this instance goes in
+`docs/infrastructure.md`, `docs/tailnet-state.md` or `stacks/<name>/README.md`. Before authoring a *new* skill, watch
 a session struggle without it first, and encode only what closes the observed gap;
 skills stay short enough to be followed. New or heavily changed skills earn trust
 through a fresh-context trial — the protocol is in `docs/conventions.md`.
@@ -189,6 +196,16 @@ value printed once is stored for good. Check presence only:
 `[ -n "$COOLIFY_ACCESS_TOKEN" ] && echo set || echo unset`. The same goes for MCP
 calls: `env_vars list` without `reveal`, and `reveal: true` only with a `key`, only
 when the value itself is what the task needs.
+- **A `claude mcp add coolify` entry beats `.mcp.json` and keeps its own copy of the
+token.** Claude Code stores that entry in `~/.claude.json` with the token as a literal,
+and it takes precedence over this repo's `.mcp.json`. After the token rotates, sessions
+keep sending the old copy: a 401 from every call that no restart fixes. `claude mcp
+get coolify` names the scope it came from. The fix is `claude mcp remove coolify -s
+local` (or `-s user`){{#HAS_MCP_JSON}}, after which `.mcp.json` takes over again{{/HAS_MCP_JSON}}{{^HAS_MCP_JSON}}, then `claude mcp add` again from a shell that has sourced
+the updated env file{{/HAS_MCP_JSON}}. To tell which copy is in use, compare hashes,
+never values: `printf %s "$COOLIFY_ACCESS_TOKEN" | sha256sum` against the same
+variable read from the MCP process's `/proc/<pid>/environ`
+(`tr '\0' '\n' < /proc/<pid>/environ | sed -n 's/^COOLIFY_ACCESS_TOKEN=//p' | tr -d '\n' | sha256sum`).
 - **Coolify is the write path.** Compose definitions and env live in its database, not in
 this repo. `stacks/<name>/` holds reference copies so they are readable in git, but nothing
 there is applied and they are not runnable as plain Compose. Change the resource in
@@ -229,8 +246,9 @@ the rules are in `docs/conventions.md`.{{/IS_LIBRARY}}{{^IS_LIBRARY}} If the rep
 a remote, push after every commit.
 - **`AGENTS.md` and the runbooks in `docs/` are rendered outputs.** They come from the
 templates bundled in the setup skill, rendered from `instance.yaml`. Do not hand-edit
-them; change `instance.yaml` (or update the skills with `npx skills add KasperHonore/coolify-devops`) and run
-`node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render`. The two state files,
+them; change `instance.yaml` (or update the skills{{#INSTALL_PLUGIN}}: `claude plugin update coolify-devops@coolify-devops`,
+then a new session{{/INSTALL_PLUGIN}}{{#INSTALL_SKILLS_CLI}} with `npx skills add KasperHonore/coolify-devops`{{/INSTALL_SKILLS_CLI}}) and {{#INSTALL_PLUGIN}}run `/setup-coolify-devops`, which only re-renders in an existing repo{{/INSTALL_PLUGIN}}{{#INSTALL_SKILLS_CLI}}run
+`node .claude/skills/setup-coolify-devops/scripts/scaffold.js --render`{{/INSTALL_SKILLS_CLI}}. The two state files,
 `docs/infrastructure.md` and `docs/tailnet-state.md`, are hand-maintained and never
 re-rendered.{{/IS_LIBRARY}}
 - Guardrails and the checklist for adding a resource are in `docs/platform.md`; the

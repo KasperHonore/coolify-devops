@@ -166,10 +166,11 @@ Then, in Coolify:
   here, which gets TLS but changes nothing about who can reach the login page{{/UI_INTERNET}}.
 - **Servers → localhost → Terminal** is a root shell on this server, opened through
   SSH, landing in `/root`. That is where the skills get installed and where Claude Code
-  runs (`cd ~ && npx skills add KasperHonore/coolify-devops -a claude-code -y`, then
+  runs ({{#INSTALL_PLUGIN}}`cd ~ && claude plugin marketplace add KasperHonore/coolify-devops && claude plugin install coolify-devops@coolify-devops --scope local`{{/INSTALL_PLUGIN}}{{#INSTALL_SKILLS_CLI}}`cd ~ && npx skills add KasperHonore/coolify-devops -a claude-code -y`{{/INSTALL_SKILLS_CLI}}, then
   `claude`); the deployment repo *is* that home directory, so nobody has to `cd`.
-- **Keys & Tokens → API tokens**: create the token the Coolify MCP will use — read,
-  write and deploy scopes, **never root** (`docs/platform.md`, *Token scoping*). It goes
+- **Keys & Tokens → API tokens**: create the token the Coolify MCP will use — `read`,
+  `read:sensitive`, `write` and `deploy`, **never root** (`docs/platform.md`, *Token
+  scoping*; without `read:sensitive` there are no logs and no compose bodies). It goes
   into your shell as `COOLIFY_ACCESS_TOKEN`, never into a file.
 
 **Done when** you are logged in at `http://<tailnet-ip>:8000` with 2FA on, and
@@ -217,7 +218,11 @@ Deliberately **not** in the list:
   and terminal channels) stay closed even in `internet` mode; the dashboard works
   without them from outside, and the team has them over the tailnet{{/UI_INTERNET}}{{^UI_INTERNET}} —
   the dashboard is a tailnet thing{{#UI_GITHUB}}, with the single GitHub exception in rule 3{{/UI_GITHUB}}{{/UI_INTERNET}}.
-- **Anything an app listens on** (3000, 8080, …) — never. Internal tools are reached by
+- **8080** — Coolify's default proxy compose publishes it on `coolify-proxy` beside 80
+  and 443, bound to `0.0.0.0` and `[::]`. With `api.insecure=false` it serves nothing,
+  but it is an open port on the host, and this firewall is all that keeps it off the
+  internet. Never open it; the probe in section 7 checks it stays closed.
+- **Anything an app listens on** (3000, …) — never. Internal tools are reached by
   the tailnet registrar over the container network; public ones by Traefik on 443.
 {{#UI_GITHUB}}
 ### GitHub's webhook ranges
@@ -409,7 +414,7 @@ firewall, so every port looks open; that result means nothing.)
 
 ```bash
 IP=<public-ip>
-for p in 22 80 443 3000 8000 6001 6002; do
+for p in 22 80 443 3000 8000 6001 6002 8080; do
   timeout 3 bash -c "</dev/tcp/$IP/$p" 2>/dev/null && echo "$p OPEN" || echo "$p closed"
 done
 ```
@@ -422,6 +427,7 @@ Expected for this instance:
 | 80, 443 | {{#HAS_PUBLIC}}**OPEN**{{/HAS_PUBLIC}}{{^HAS_PUBLIC}}closed{{/HAS_PUBLIC}} | {{#HAS_PUBLIC}}public lane{{/HAS_PUBLIC}}{{^HAS_PUBLIC}}no public lane{{/HAS_PUBLIC}} |
 | 8000 | {{#UI_INTERNET}}**OPEN**{{/UI_INTERNET}}{{^UI_INTERNET}}closed{{/UI_INTERNET}} | {{#UI_TAILNET}}dashboard is tailnet-only{{/UI_TAILNET}}{{#UI_GITHUB}}`github` mode — open to GitHub's ranges only, so *closed from here* is the rule working{{/UI_GITHUB}}{{#UI_INTERNET}}`internet` mode{{/UI_INTERNET}} |
 | 3000, 6001, 6002 | closed | always |
+| 8080 | closed | always — Coolify's proxy publishes it on every address; only the firewall keeps it in |
 
 Then from a machine **on** the tailnet: `curl -sI http://<tailnet-ip>:8000` answers.
 

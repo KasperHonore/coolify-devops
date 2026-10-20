@@ -5,6 +5,47 @@ a GitHub release for each, with this entry as its notes and the Agent Skills dis
 index plus one artifact per skill attached. A version is never re-released with
 different skill content; CI and the publish script both refuse it.
 
+## 0.9.0 — 2026-10-20
+
+Fixes from a consumer report: three lessons that operating sessions had learned but
+written into rendered files, which a re-render wiped; rendered docs that assumed the
+skills CLI install; and a port the firewall probe did not check.
+
+- **The Coolify token needs `read:sensitive`.** Without it, `logs` fails with "Missing
+  required permissions: read:sensitive" and `get_service` leaves out the compose
+  body, so `/health` cannot read the registrar's logs or compare live compose with
+  `stacks/`. The scope list is now `read`, `read:sensitive`, `write`, `deploy` (never
+  `root`) in the setup skill, the scaffolder's handover, the README template and
+  `provisioning.md`, and `platform.md` *Token scoping* describes the failure. Check
+  your token's scopes under Keys & Tokens.
+- **A `claude mcp add coolify` entry overrides `.mcp.json`** and stores its own copy
+  of the token, so after a rotation every call returns 401 until it is removed. The
+  setup skill no longer recommends `claude mcp add`; `AGENTS.md` has the fix
+  (`claude mcp remove coolify -s local`) and how to tell which copy is in use by
+  comparing hashes, never values.
+- **The server proxy (Traefik) is a dashboard step.** No Coolify MCP tool updates,
+  configures or restarts it (checked on MCP 3.9.0). `platform.md` records it, `/health`
+  reports a Traefik update as a step for the person (Servers → Proxy), and
+  `/change-service` lists it as out of scope.
+- **`/health` checks whether the Coolify MCP is behind** its latest npm release and
+  says how to pick the new one up: a session restart, or removing an entry that pins
+  or overrides it.
+- **Rendered docs follow the install route.** The scaffolder detects whether it runs
+  from the Claude Code plugin or a skills CLI install and records it as
+  `install.route` in `instance.yaml`. A re-render adds the key to an older repo and
+  corrects it after a switch. On the plugin route the rendered update step is
+  `claude plugin update` followed by `/coolify-devops:setup-coolify-devops` (no script
+  path, since the plugin cache moves on every update), skill names are namespaced,
+  and `skills-lock.json` is not allow-listed. `--route=plugin|skills-cli` overrides
+  the detection.
+- **The firewall probe includes 8080.** Coolify's proxy publishes it on every address;
+  only the cloud firewall keeps it off the internet. `/setup-coolify-devops`, `/health`
+  and `provisioning.md` now expect it closed.
+- `AGENTS.md` says where a lesson goes: platform lessons upstream into the templates,
+  facts about the instance into the state docs, never into a rendered file.
+
+After updating, re-render (`/setup-coolify-devops` in an existing repo) to pick these up.
+
 ## 0.8.2 — 2026-10-15
 
 `/host` reads two new lines in the AI Build Kit hosting request.

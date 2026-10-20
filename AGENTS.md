@@ -54,7 +54,9 @@ rendered `docs/` in the deployment repo and never reach into another skill's fol
   `skills/setup-coolify-devops/assets/docs/`, then the deployment repo re-renders.
   Skills follow the docs; when they disagree, the doc wins and the skill is fixed.
 - **Skills are living runbooks.** When a session learns something the hard way, fold it
-  into the skill that should have prevented it, in the same change as the fix.
+  into the skill that should have prevented it, in the same change as the fix. A
+  platform lesson from a consumer's deployment repo lands in the templates here; it
+  never lives in a rendered file there, which the next render overwrites.
 
 ## Checks
 

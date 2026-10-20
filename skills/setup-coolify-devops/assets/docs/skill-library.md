@@ -1,5 +1,19 @@
 # The skill library as a distributable product: position
 
+Status, 2026-10-20: **both install routes render as themselves.** A consumer who moved
+from the skills CLI to the Claude Code plugin re-rendered and got text for the route
+they had left: `npx skills add`, a `node .claude/skills/...` path that does not exist
+under the plugin (it lives in a versioned cache directory that moves on every
+update), bare skill names where the plugin's are `/coolify-devops:<name>`, and
+`skills-lock.json` allow-listed. The scaffolder now reads the route from its own path,
+records it as `install.route` in `instance.yaml` (a render writes it into an older
+repo, and corrects it after a switch), and renders the matching update step,
+re-render step (`/setup-coolify-devops` on the plugin route, never a script path),
+skill names and `.gitignore`. The same report carried three lessons operating sessions
+had written into rendered files, which the render then wiped; they are now in the
+templates, and `AGENTS.md` says a lesson never goes into a rendered file. The entries
+below describe the skills CLI as the only route; that was true when they were written.
+
 Status, 2026-10-15: **lined up with AI Build Kit v0.20.** The kit renamed `/ship` to
 `/setup-hosting` and `/sync` to `/maintain` in v0.20.0 (2026-10-08), and now treats a
 merge through `/implement` as a deploy: `/implement` reads the live tool's health

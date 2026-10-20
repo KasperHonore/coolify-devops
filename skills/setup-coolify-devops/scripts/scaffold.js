@@ -32,10 +32,12 @@
 //   --backups=X             recommend-but-no | required (default recommend-but-no)
 //   --branch=X              commit branch (default main)
 //   --no-git                skip git init + initial commit
+//   --route=X               skills-cli | plugin — how the skills are installed (default: detected from
+//                           this script's path; recorded as install.route in instance.yaml)
 //   --render                re-render ./AGENTS.md and the runbooks in ./docs/ from ./instance.yaml
 //   --set a.b=value         (with --render) update one instance.yaml key first, e.g.
 //                           --set coolify.version_observed=4.3.18 — keeps the file's comments intact
-//                           (after `npx skills add` re-adds the skills, or after editing instance.yaml);
+//                           (after updating the skills, either route, or after editing instance.yaml);
 //                           adds new env passthroughs to an existing .mcp.json, keeping its values; never
 //                           touches the state files docs/infrastructure.md and docs/tailnet-state.md
 //   --help
@@ -158,7 +160,37 @@ function varsFromInstance(inst) {
     VERSION_OBSERVED: (inst.coolify && inst.coolify.version_observed) || '',
     MCP_SERVER: (inst.coolify && inst.coolify.mcp_server) || 'coolify',
     COOLIFY_URL: (inst.coolify && inst.coolify.url) || '',
+    ...routeVars((inst.install && inst.install.route) || 'skills-cli'),
   };
+}
+
+// How the skills reached this machine decides the update command, the re-render step,
+// whether skill names are namespaced, and whether skills-lock.json is tracked.
+const INSTALL_ROUTES = ['skills-cli', 'plugin'];
+const PLUGIN_NAME = 'coolify-devops';
+const SKILL_NAMES = ['setup-coolify-devops', 'host', 'change-service', 'health', 'grant-access'];
+function routeVars(route) {
+  route = INSTALL_ROUTES.includes(route) ? route : 'skills-cli';
+  return { INSTALL_ROUTE: route, INSTALL_PLUGIN: route === 'plugin', INSTALL_SKILLS_CLI: route === 'skills-cli' };
+}
+
+// The route this script is running from: the plugin cache (a versioned directory under
+// ~/.claude/plugins/, which moves on every update) or a skills CLI install in the repo.
+// null from a library checkout or a test, where the recorded route stands.
+function detectRoute() {
+  for (const candidate of [SKILL_ROOT, fs.realpathSync(SKILL_ROOT)]) {
+    if (/\/\.claude\/plugins\//.test(candidate)) return 'plugin';
+    if (/\/(?:\.claude|\.agents)\/skills\/[^/]+$/.test(candidate)) return 'skills-cli';
+  }
+  return null;
+}
+
+// Plugin skills are invoked namespaced (/coolify-devops:host). The templates name them
+// bare, in backticks; on the plugin route the rendered text gets the namespace.
+function renderFor(tpl, vars) {
+  const out = render(tpl, vars);
+  if (!vars.INSTALL_PLUGIN) return out;
+  return out.replace(new RegExp('`/(' + SKILL_NAMES.join('|') + ')\\b', 'g'), '`/' + PLUGIN_NAME + ':$1');
 }
 
 function checkChoice(name, value, choices) {
@@ -212,7 +244,7 @@ function seedStacks(target, vars) {
     if (fs.existsSync(dst)) continue;
     fs.mkdirSync(dst, { recursive: true });
     for (const f of fs.readdirSync(path.join(src, name))) {
-      fs.writeFileSync(path.join(dst, f), render(fs.readFileSync(path.join(src, name, f), 'utf8'), vars));
+      fs.writeFileSync(path.join(dst, f), renderFor(fs.readFileSync(path.join(src, name, f), 'utf8'), vars));
     }
     seeded.push(name);
   }
@@ -242,7 +274,7 @@ function renderRunbooks(targetDocs, vars) {
   fs.mkdirSync(targetDocs, { recursive: true });
   for (const f of fs.readdirSync(path.join(TEMPLATE_DIR, 'docs'))) {
     if (!f.endsWith('.md') || STATE_SKELETONS.has(f)) continue;
-    const body = render(fs.readFileSync(path.join(TEMPLATE_DIR, 'docs', f), 'utf8'), vars);
+    const body = renderFor(fs.readFileSync(path.join(TEMPLATE_DIR, 'docs', f), 'utf8'), vars);
     fs.writeFileSync(path.join(targetDocs, f), (vars.IS_LIBRARY ? RUNBOOK_BANNER.replace('%s', f) : '') + body);
   }
 }
@@ -270,22 +302,34 @@ function mergeMcpJson(file) {
 
 function renderMode(args) {
   const cwd = process.cwd();
-  for (const spec of [].concat(args.set || [])) setInstanceKey(path.join(cwd, 'instance.yaml'), spec);
-  const inst = readInstanceYaml(path.join(cwd, 'instance.yaml'));
+  const instFile = path.join(cwd, 'instance.yaml');
+  for (const spec of [].concat(args.set || [])) setInstanceKey(instFile, spec);
+  // Record the install route. A repo from before 0.9.0 has no install: section, and one
+  // that switched routes records the old one; the running script knows which it is.
+  checkChoice('route', args.route, INSTALL_ROUTES);
+  const route = args.route || detectRoute();
+  const recorded = (readInstanceYaml(instFile).install || {}).route;
+  let routeNote = '';
+  if (route && route !== recorded) {
+    if (recorded === undefined) fs.appendFileSync(instFile, `\ninstall:\n  route: ${route}                 # skills-cli | plugin — how the skills reach this machine; a render records it\n`);
+    else setInstanceKey(instFile, `install.route=${route}`);
+    routeNote = `; install.route ${recorded || '(unset)'} -> ${route}`;
+  }
+  const inst = readInstanceYaml(instFile);
   const tpl = fs.readFileSync(path.join(TEMPLATE_DIR, 'AGENTS.md'), 'utf8');
   // IS_LIBRARY: the library author's own deployment repo, which carries library/ and
   // gets the "rendered from" banners; a consumer's repo does not.
   const vars = { ...varsFromInstance(inst), HAS_MCP_JSON: fs.existsSync(path.join(cwd, '.mcp.json')), IS_LIBRARY: fs.existsSync(path.join(cwd, 'library', 'skills')) };
-  fs.writeFileSync(path.join(cwd, 'AGENTS.md'), render(tpl, vars));
+  fs.writeFileSync(path.join(cwd, 'AGENTS.md'), renderFor(tpl, vars));
   fs.writeFileSync(path.join(cwd, 'CLAUDE.md'), CLAUDE_STUB);
   // The allow-list .gitignore is a rendered output too: when the tracked file set grows
   // (AGENTS.md did), an old copy silently ignores the new file — refresh it on render,
   // unless this is the library author's repo, which has its own.
-  if (!vars.IS_LIBRARY) fs.writeFileSync(path.join(cwd, '.gitignore'), fs.readFileSync(path.join(TEMPLATE_DIR, '_gitignore'), 'utf8'));
+  if (!vars.IS_LIBRARY) fs.writeFileSync(path.join(cwd, '.gitignore'), render(fs.readFileSync(path.join(TEMPLATE_DIR, '_gitignore'), 'utf8'), vars));
   renderRunbooks(path.join(cwd, 'docs'), vars);
   const seeded = seedStacks(cwd, vars);
   const mcpAdded = vars.HAS_MCP_JSON ? mergeMcpJson(path.join(cwd, '.mcp.json')) : [];
-  console.log(`Rendered AGENTS.md and the runbooks in docs/ from instance.yaml${vars.IS_LIBRARY ? ' (library author mode)' : ''}${seeded.length ? '; seeded stacks/' + seeded.join(', stacks/') : ''}${mcpAdded.length ? '; added ' + mcpAdded.join(', ') + ' to .mcp.json' : ''}`);
+  console.log(`Rendered AGENTS.md and the runbooks in docs/ from instance.yaml${vars.IS_LIBRARY ? ' (library author mode)' : ''}${seeded.length ? '; seeded stacks/' + seeded.join(', stacks/') : ''}${mcpAdded.length ? '; added ' + mcpAdded.join(', ') + ' to .mcp.json' : ''}${routeNote}`);
 }
 
 // ---------- scaffold ----------
@@ -323,6 +367,8 @@ async function main() {
   checkChoice('dns-provider', dnsProvider, DNS_PROVIDERS);
   checkChoice('coolify-ui', uiExposure, UI_EXPOSURES);
   checkChoice('host-provider', hostProvider, HOST_PROVIDERS);
+  checkChoice('route', args.route, INSTALL_ROUTES);
+  const route = args.route || detectRoute() || 'skills-cli';
   if (args.noPublic) pub = '';
   internal = internal || '';
   pub = pub || '';
@@ -348,6 +394,7 @@ async function main() {
     canary,
     plumbing: { tailnet_registrar: 'docktail', public_dns: pinnerNameFor(dnsProvider), public_dns_provider: dnsProvider },
     policy: { backups_default: backups, write_path: 'coolify-via-mcp', commit_branch: branch },
+    install: { route },
   };
   const vars = { ...varsFromInstance(inst), HAS_MCP_JSON: true };
   // instance.yaml is YAML, so empty strings must be quoted there.
@@ -356,7 +403,7 @@ async function main() {
   fs.mkdirSync(target, { recursive: true });
 
   // 1. Runbooks rendered for this instance. (The skills themselves are already in
-  // place: `npx skills add` put them there, which is how this script got here.)
+  // place, in the repo or the plugin cache, which is how this script got here.)
   renderRunbooks(path.join(target, 'docs'), vars);
   fs.mkdirSync(path.join(target, 'stacks'), { recursive: true });
   fs.copyFileSync(path.join(TEMPLATE_DIR, 'stacks-README.md'), path.join(target, 'stacks', 'README.md'));
@@ -368,15 +415,15 @@ async function main() {
     fs.mkdirSync(path.dirname(p), { recursive: true });
     fs.writeFileSync(p, content);
   };
-  write('AGENTS.md', render(fs.readFileSync(path.join(TEMPLATE_DIR, 'AGENTS.md'), 'utf8'), vars));
+  write('AGENTS.md', renderFor(fs.readFileSync(path.join(TEMPLATE_DIR, 'AGENTS.md'), 'utf8'), vars));
   write('CLAUDE.md', CLAUDE_STUB);
-  write('instance.yaml', render(fs.readFileSync(path.join(TEMPLATE_DIR, 'instance.yaml'), 'utf8'), yamlVars));
+  write('instance.yaml', renderFor(fs.readFileSync(path.join(TEMPLATE_DIR, 'instance.yaml'), 'utf8'), yamlVars));
   write('.mcp.json', fs.readFileSync(path.join(TEMPLATE_DIR, 'mcp.json'), 'utf8'));
-  write('.gitignore', fs.readFileSync(path.join(TEMPLATE_DIR, '_gitignore'), 'utf8'));
-  write('README.md', render(fs.readFileSync(path.join(TEMPLATE_DIR, 'README.md'), 'utf8'), vars));
+  write('.gitignore', render(fs.readFileSync(path.join(TEMPLATE_DIR, '_gitignore'), 'utf8'), vars));
+  write('README.md', renderFor(fs.readFileSync(path.join(TEMPLATE_DIR, 'README.md'), 'utf8'), vars));
   // Instance-state skeletons: portable docs never carry state, so these start empty.
   for (const f of STATE_SKELETONS) {
-    write(path.join('docs', f), render(fs.readFileSync(path.join(TEMPLATE_DIR, 'docs', f), 'utf8'), vars));
+    write(path.join('docs', f), renderFor(fs.readFileSync(path.join(TEMPLATE_DIR, 'docs', f), 'utf8'), vars));
   }
 
   // 3. Git.
@@ -396,13 +443,14 @@ async function main() {
 Scaffolded ${rel}/
   AGENTS.md          operating rules for every agent session (Claude Code, Codex, Cursor, ...)
   CLAUDE.md          one line, @AGENTS.md — Claude Code imports the same rules
-  instance.yaml      your bindings${internal ? '' : ' (blank — /setup-coolify-devops fills them)'}
+  instance.yaml      your bindings${internal ? '' : ` (blank — ${route === 'plugin' ? '/coolify-devops:' : '/'}setup-coolify-devops fills them)`}
   .mcp.json          Coolify MCP wiring; reads COOLIFY_BASE_URL, COOLIFY_ACCESS_TOKEN (and optional COOLIFY_UI_URL) from your shell
   docs/              runbooks and state files, rendered for your instance
   stacks/            reference copies seeded for: ${seeded.join(', ') || '(none)'} — plus README.md
 ${gitDone ? '  git: committed on ' + branch : '  git: not initialised (run git init yourself)'}
   lane: ${pub ? 'public lane on (' + pub + ', ' + dnsProvider + ')' : 'no public lane'}; dashboard reachable by: ${uiExposure}
   operated from: ${onHost ? 'the Coolify host itself' : same ? 'a machine on the same tailnet' : 'a machine off the tailnet'}
+  skills installed: ${route === 'plugin' ? 'as the Claude Code plugin (skills are /coolify-devops:<name>)' : 'with the skills CLI'}
 
 Human steps still ahead (the skill hands these over and verifies them):
   - docs/provisioning.md if the server, Tailscale, Coolify, or the firewall are not done yet
@@ -411,7 +459,7 @@ Human steps still ahead (the skill hands these over and verifies them):
        ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
        export COOLIFY_BASE_URL=${coolifyUrl || (onHost ? 'http://localhost:8000' : 'http://<tailnet-ip-of-the-host>:8000')}
        export COOLIFY_UI_URL=<dashboard address>  # optional: the URL you open in a browser, so MCP links work there
-       export COOLIFY_ACCESS_TOKEN=<token>      # read + write + deploy scopes; never root
+       export COOLIFY_ACCESS_TOKEN=<token>      # read, read:sensitive, write, deploy; never root
        export HCLOUD_TOKEN=<token>              # optional: lets the skills manage the Hetzner firewall
        EOF
        ); grep -q coolify-devops.env ~/.bashrc || echo '. ~/.config/coolify-devops.env' >> ~/.bashrc

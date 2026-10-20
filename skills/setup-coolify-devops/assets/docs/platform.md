@@ -271,6 +271,12 @@ agent-driven-ops field are worth keeping in view:
   `root`), and every API call is logged per token under Settings → API Logs. A second
   **read-only token** for investigation-flavored sessions would make a triage session
   physically unable to redeploy anything.
+* **The operating token needs `read`, `read:sensitive`, `write` and `deploy`.** Without
+  `read:sensitive`, `logs` fails with "Missing required permissions: read:sensitive"
+  and `get_service` leaves out the compose body, so `/health` can read neither the
+  registrar's logs nor diff live compose against `stacks/`. Nothing else complains, so
+  a token minted from a scope list without it looks fine until the first sweep (seen
+  after a 2026-10 rotation). A read-only triage token is `read` + `read:sensitive`.
 * Never run an agent on a `root` token; `read` + `deploy` covers the CI-shaped flows.
 
 ### Tool surface: what to reach for
@@ -350,6 +356,7 @@ Confirmed on Coolify 4.3.10, 4.3.18 and (the preview rows) 4.3.23 or later; re-c
 | **From MCP 3.9.0 the MCP follows no redirects.** An `http://` base URL behind a proxy that upgrades to https fails every call with "Use https://… as the base URL"; a Cloudflare Access login page is an error naming Access, no longer a 200 read as data | A domain's `COOLIFY_BASE_URL` is `https://`. `http://localhost:8000` and `http://<tailnet-ip>:8000` reach Coolify directly and are unaffected. `doctor` fails on any redirect. |
 | MCP links (`coolify_url`, 3.8.0) are built on `COOLIFY_BASE_URL` | `localhost:8000` links open only on the host. Set `COOLIFY_UI_URL` to the dashboard as the operator's browser reaches it; `.mcp.json` passes it through when set. The MCP warns only for a single-label host such as `http://coolify:8080`. |
 | `logs` and `deployment` `lines` take a whole number, 1–10000 (MCP 3.9.0) | `-1` for every line is refused; page with `lines` and `page` instead. |
+| **No MCP tool covers the server proxy** (Coolify's own Traefik). Coolify's API has get, save, update and restart endpoints for it; the MCP wraps none of them (checked on 3.5.0 and 3.9.0), and the proxy data inside `get_server` is read-only | Updating Traefik, changing its config, or restarting it is a dashboard step for the person: **Servers → the server → Proxy**. A standing human-only item: no raw-API call with the token, no edit under `/data/coolify/proxy/`, no `docker` against `coolify-proxy` — each goes around the MCP. Report it and hand it over. |
 | `storages create` with `type: persistent` rejects `is_directory` | `name` and `mount_path` only; `is_directory` is for `file` mounts. |
 | `env_vars create` refuses an empty value | Create the key with a `REPLACE_ME` placeholder when the human will set the value in the UI. |
 | `deploy` while a webhook deployment is in progress queues a **second** identical build | After a merge, watch `deployment list_for_app` (`is_webhook: true`) instead; `deployment cancel` the duplicate. |

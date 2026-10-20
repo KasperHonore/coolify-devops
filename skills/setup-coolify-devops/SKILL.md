@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run inside the directory that will become the deployment repo, on a machine with the Coolify MCP configured and Node 18+ for the bundled scaffolder. Needs network access to the Coolify API and, optionally, the Tailscale and Hetzner APIs.
 metadata:
   author: KasperHonore
-  version: "0.8.2"
+  version: "0.9.0"
 ---
 
 # Set up an instance
@@ -42,8 +42,11 @@ Both install routes lead here. Under the skills CLI the skills are files in the
 deployment repo and the scaffolder finds the repo from its own path; under the
 Claude plugin route (`/coolify-devops:setup-coolify-devops`) the skill runs from
 Claude's plugin cache, the scaffolder falls back to the working directory, and
-`${CLAUDE_SKILL_DIR}` still points at this skill's `scripts/` and `assets/`. Nothing
-else differs, and nothing is ever written into the cache.
+`${CLAUDE_SKILL_DIR}` still points at this skill's `scripts/` and `assets/`. The
+scaffolder detects the route from its own path, records it as `install.route` in
+`instance.yaml` (a re-render corrects it after a switch), and renders the matching
+update step, skill names (namespaced on the plugin route) and `.gitignore`. Nothing
+is ever written into the cache.
 
 Five preconditions are outside any repo's reach. Hand each to the human as a
 prepared step — exact console path or command, verified afterwards, never marked
@@ -60,18 +63,14 @@ done because it was asked for:
    the answers.
 1. **The Coolify MCP is pointed at the instance** — harness configuration; tokens
    never enter the repo. The prepared step for Claude Code, token supplied from the
-   human's shell environment and scoped per `docs/platform.md`, *Token scoping* (never `root`):
-
-   ```bash
-   claude mcp add coolify \
-     -e COOLIFY_BASE_URL="https://<coolify-host>" \        # http://localhost:8000 on the host itself
-     -e COOLIFY_ACCESS_TOKEN="$COOLIFY_ACCESS_TOKEN" \
-     -- npx @masonator/coolify-mcp@latest
-   ```
-
-   A repo this skill scaffolded needs none of that: its `.mcp.json` expands
-   `${COOLIFY_BASE_URL}` and `${COOLIFY_ACCESS_TOKEN}` from the shell Claude Code was
-   started in. The prepared step is: put both in a **root-only file that the shell
+   human's shell environment and scoped per `docs/platform.md`, *Token scoping*:
+   `read`, `read:sensitive`, `write`, `deploy`, never `root`. The scaffolded
+   `.mcp.json` expands `${COOLIFY_BASE_URL}` and `${COOLIFY_ACCESS_TOKEN}` from the
+   shell Claude Code was started in, so **do not `claude mcp add coolify`** as well:
+   that entry beats `.mcp.json`, stores the token as a literal, and keeps sending it
+   after a rotation (401s no restart fixes; `AGENTS.md`, *Watch out for*, has the fix
+   and the hash check). If `claude mcp get coolify` shows a local or user entry,
+   `claude mcp remove coolify -s <scope>`. The prepared step is: put both in a **root-only file that the shell
    sources**, so they survive logout and reboot — a bare `export` lasts
    one session and a user *will* assume otherwise (it happened). Hand over exactly:
 
@@ -79,7 +78,7 @@ done because it was asked for:
    ( umask 077; mkdir -p ~/.config; cat > ~/.config/coolify-devops.env <<'EOF'
    export COOLIFY_BASE_URL=http://localhost:8000     # or the host's tailnet IP:8000 from elsewhere
    export COOLIFY_UI_URL=http://<tailnet-ip>:8000    # optional: the dashboard as your browser reaches it
-   export COOLIFY_ACCESS_TOKEN=<token>               # read + write + deploy scopes; never root
+   export COOLIFY_ACCESS_TOKEN=<token>               # read, read:sensitive, write, deploy; never root
    export HCLOUD_TOKEN=<token>                       # optional: Hetzner API, so the skill manages the firewall
    EOF
    ); grep -q coolify-devops.env ~/.bashrc || echo '. ~/.config/coolify-devops.env' >> ~/.bashrc
@@ -307,7 +306,7 @@ laptop with Tailscale off" — and wait for the pasted result. Off the host, run
 here. Either way, try each port with a short timeout:
 
 ```bash
-for p in 22 80 443 3000 8000 6001 6002; do
+for p in 22 80 443 3000 8000 6001 6002 8080; do
   timeout 3 bash -c "</dev/tcp/<public-ip>/$p" 2>/dev/null && echo "$p OPEN" || echo "$p closed"
 done
 ```

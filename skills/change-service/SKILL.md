@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a deployment repo created by setup-coolify-devops with the Coolify MCP configured. Needs network access to the Coolify API.
 metadata:
   author: KasperHonore
-  version: "0.8.2"
+  version: "0.9.0"
 ---
 
 # Change an existing resource
@@ -34,6 +34,11 @@ procedure.
    control-plane definition is write-once and the service silently dies. Renaming a
    service orphans the old definition; delete it by hand in the same change
    (`docs/internal-services.md`, "Repairing a wrong port" / "Renaming").
+
+Out of scope: **Coolify's own proxy** (Traefik on the server). No MCP tool updates,
+reconfigures or restarts it, so it is a dashboard step for the person (Servers →
+Proxy), never a raw-API call or an edit under `/data/coolify/proxy/`
+(`docs/platform.md`, MCP rough edges).
 
 ## 1. Compose and env edits
 
